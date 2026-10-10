@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Felix's Snake Cubes — Architecture Schematic</title>
+<style>
+  body { background:#060a10; color:#c8c8d8; font-family:'Courier New',monospace; font-size:0.78rem; padding:24px; line-height:1.6; }
+  h1 { color:#00f5c4; letter-spacing:3px; font-size:1.1rem; margin-bottom:4px; }
+  h2 { color:#ff6b35; letter-spacing:2px; font-size:0.85rem; margin-top:24px; margin-bottom:6px; border-bottom:1px solid rgba(255,107,53,0.3); padding-bottom:4px; }
+  h3 { color:#ffcc00; font-size:0.78rem; margin-top:14px; margin-bottom:4px; }
+  pre { background:#0c1018; border:1px solid rgba(0,245,196,0.15); border-radius:4px; padding:12px; overflow-x:auto; color:#a8e8d0; font-size:0.72rem; }
+  table { border-collapse:collapse; width:100%; margin-top:8px; }
+  th { color:#00f5c4; text-align:left; padding:4px 10px; border-bottom:1px solid rgba(0,245,196,0.25); font-size:0.72rem; }
+  td { padding:3px 10px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.72rem; }
+  td:first-child { color:#ff6b35; }
+  .tag { display:inline-block; background:rgba(0,245,196,0.12); color:#00f5c4; border-radius:3px; padding:1px 6px; font-size:0.65rem; margin-left:4px; }
+  .note { color:#555570; font-size:0.68rem; font-style:italic; margin-top:4px; }
+  a { color:#bf5fff; }
+</style>
+</head>
+<body>
+<h1>FELIX'S SNAKE CUBES — ARCHITECTURE SCHEMATIC</h1>
+<p class="note">Refactored from monolithic snake2048_v3.0.1.html (5226 lines) into modular files. All JS uses plain &lt;script&gt; tags sharing a single global scope — NOT ES modules.</p>
+
+<h2>FILE TREE</h2>
+<pre>
+Felix Snake Cube/
+  index.html          ← HTML skeleton + CSS link + 10 script tags at bottom of body
+  schematic.html      ← this file: architecture overview
+  css/
+    styles.css        ← all CSS (lines 9–239 of original)
+  js/
+    config.js         ← CFG, world constants, color tables, city pools
+    render.js         ← canvas, camera, 3D projection, drawing primitives, lerpAngle
+    game-core.js      ← G state, snake logic, ticks, food spawning, HUD
+    input.js          ← touch/mouse/keyboard steering, joystick UI
+    weapons.js        ← hook system, tail bullets, vacuum, bot hook AI
+    athena.js         ← Athena challenge mode: boundary, deco objects, jumps
+    multiplayer.js    ← PeerJS MP engine: lobby, host/guest, state broadcast
+    settings.js       ← settings panel sliders, home button, initial G setup
+    main.js           ← loop(), draw(), lerpSeg(), drawRadar()
+    dad.js            ← Dad's mode: realistic Mapbox + Three.js renderer (PLANNED v3.2.0)
+</pre>
+
+<h2>SCRIPT LOAD ORDER</h2>
+<p class="note">Order is critical — later files reference globals defined earlier.</p>
+<pre>
+1. config.js       — CFG, WORLD_DENSITY, color helpers, VALS, BOT_PAL …
+2. render.js       — canvas, ctx, W, H, CAM, project3, drawCube3, lerpAngle …
+3. game-core.js    — G, newSnake, initGame, stepSnake, botTick, showFlash …
+4. input.js        — TURN_SPEED, steerPlayer, triggerBurst, joystick handlers
+5. weapons.js      — fireHook, tickHooks, fireTailBullet, drawActionCooldowns …
+6. athena.js       — ATHENA object, startAthena, drawAthenaBoundary …
+7. multiplayer.js  — MP object, initMPOverlay, broadcastState, mpOnKill …
+8. settings.js     — slider wiring, initial G = {}, requestAnimationFrame(loop)
+9. main.js         — loop(), draw(), lerpSeg(), drawRadar()
+10. dad.js         — DAD object, startDad(), DAD.draw() — parallel render path  [PLANNED]
+</pre>
+<p class="note">Note: settings.js calls requestAnimationFrame(loop) — loop() is defined in main.js which is loaded AFTER settings.js. This works because rAF fires asynchronously after all scripts are parsed.</p>
+<p class="note">dad.js loads last so that dadTerrainH() and drawDadObjects() are available when main.js and render.js call them at runtime. Guards in those files use typeof DAD — same pattern as ATHENA.</p>
+
+<h2>ATHENA GUARDS</h2>
+<p class="note">athena.js loads 6th. Files 1–5 must guard ATHENA references with typeof checks:</p>
+<pre>
+// Pattern used throughout config.js, render.js, game-core.js, weapons.js:
+if(typeof ATHENA !== 'undefined' &amp;&amp; ATHENA.active) { … }
+</pre>
+
+<h2>DAD'S MODE — PLANNED v3.2.0</h2>
+<p class="note">A neighborhood/suburban world. Ground layer is a real satellite image (e.g. walteria.png) projected onto a 3D perspective plane via a secondary WebGL canvas. Snake logic, game tick, weapons, and MP are unchanged. Objects (trees, buildings, roads) are defined per-map in a JSON file produced by map-builder.html.</p>
+
+<h3>Rendering architecture</h3>
+<pre>
+Two canvases, stacked:
+  &lt;canvas id="dad-bg"&gt;   — WebGL, z-index below main canvas
+                            draws the satellite image as a perspective-projected
+                            ground plane, scrolling with the camera (CAM)
+  &lt;canvas id="c"&gt;        — existing 2D canvas, transparent background in dad mode
+                            draws snake, food, HUD, weapons on top
+
+dad.js manages the WebGL canvas (init, resize, draw each frame).
+main.js checks DAD.active and calls DAD.drawBg(now) before the 2D draw pass.
+The 2D ground tile draw loop is skipped when DAD.active (image replaces it).
+</pre>
+
+<h3>Map system — JSON per tile</h3>
+<pre>
+assets/
+  walteria.png          ← satellite image (any size)
+  walteria.json         ← produced by map-builder.html
+  future-map.png / .json
+
+walteria.json schema:
+{
+  "id": "walteria",
+  "image": "assets/walteria.png",
+  "carPixels": 20,          ← image pixels per grid cell (= snake ≈ 1 car wide)
+  "imageWidth": 512,
+  "imageHeight": 512,
+  "gridCols": 26,           ← Math.round(imageWidth / carPixels)
+  "gridRows": 26,
+  "objects": [
+    { "type": "tree",     "x": 245, "y": 312 },
+    { "type": "building", "pts": [[100,200],[200,200],[200,300],[100,300]] },
+    { "type": "road",     "pts": [[0,150],[500,150]], "width": 14 }
+  ]
+}
+
+Coordinates: image pixels (natural image dimensions).
+dad.js normalizes to grid cells on load: gridX = imageX / carPixels.
+</pre>
+
+<h3>Collision rules</h3>
+<pre>
+Map edge      → snake bounces (direction reverses / deflects)
+Building wall → snake bounces (same rule as map edge)
+No wrap. No Athena-style shrink boundary.
+</pre>
+
+<h3>Snake scale</h3>
+<pre>
+CFG_DAD.CAR_PIXELS  — image pixels per grid cell (matches carPixels in JSON)
+                      adjustable slider in settings; controls how large snakes
+                      appear relative to the satellite image.
+One grid cell ≈ one small vehicle width on the satellite image.
+</pre>
+
+<h3>Multiple maps</h3>
+<pre>
+DAD.maps = ['assets/walteria.json', …]   — list of available maps
+DAD.currentMap = 0                        — index
+loadDadMap(jsonPath)                      — fetch JSON, load image, rebuild grid
+Maps are swappable at runtime; grid dimensions (A×B) change per map.
+</pre>
+
+<h3>What changes in existing files</h3>
+<pre>
+index.html     — add &lt;canvas id="dad-bg"&gt; behind #c; add &lt;script src="js/dad.js"&gt;
+render.js      — terrainH(): return 0 (flat) when DAD.active (image is the terrain)
+main.js        — draw(): skip ground tile loop + call DAD.drawBg(now) when DAD.active
+multiplayer.js — add "Dad's Mode" button → loadDadMap() then startDad()
+</pre>
+
+<h3>DAD GUARDS pattern</h3>
+<pre>
+// render.js terrainH():
+if (typeof DAD !== 'undefined' &amp;&amp; DAD.active) return 0;
+
+// main.js draw() — before ground tile loop:
+if (typeof DAD !== 'undefined' &amp;&amp; DAD.active) { DAD.drawBg(now); }
+else { /* existing ground tile loop */ }
+</pre>
+
+<h3>map-builder.html</h3>
+<pre>
+Standalone tool (no server needed). Opens assets/walteria.png flat (2D, no projection).
+Tools: SELECT | TREE (click) | BUILDING (polygon, dbl-click/right-click to close)
+       ROAD (polyline) | ERASE
+Features: scroll-to-zoom, space+drag pan, grid overlay (carPixels), undo (Ctrl+Z),
+          load/save JSON, load any image (drag-in or file picker).
+Exports: &lt;mapId&gt;.json (download) — load into dad.js via loadDadMap().
+Shortcuts: S=select T=tree B=building R=road E=erase Del=delete Esc=cancel
+</pre>
+
+<h2>KEY GLOBALS</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Defined in</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>CFG</td><td>config.js</td><td>All game constants (COLS, ROWS, TICK_MS, PLAYER_START_VAL, …)</td></tr>
+    <tr><td>CFG_AUDIO</td><td>config.js</td><td>Audio player configuration and playlist</td></tr>
+    <tr><td>WORLD_DENSITY</td><td>config.js</td><td>Scaling factor for bot counts</td></tr>
+    <tr><td>EXPERT_MODE</td><td>config.js</td><td>Boolean — enables harder bots</td></tr>
+    <tr><td>HOOK_ENABLED</td><td>config.js</td><td>Boolean — enables hook weapon</td></tr>
+    <tr><td>TAILBULLET_ENABLED</td><td>config.js</td><td>Boolean — enables tail bullet weapon</td></tr>
+    <tr><td>RADAR_ALWAYS_ON</td><td>config.js</td><td>Boolean — radar always visible</td></tr>
+    <tr><td>BONUS_SIZE_MULT</td><td>config.js</td><td>Size multiplier for special food orbs</td></tr>
+    <tr><td>DENSITY_MULT</td><td>config.js</td><td>Runtime density adjustment from slider</td></tr>
+    <tr><td>VALS</td><td>config.js</td><td>Array of valid tile values [2,4,8,…,131072]</td></tr>
+    <tr><td>gc(val)</td><td>config.js</td><td>Get color palette entry for a given value</td></tr>
+    <tr><td>PLAYER_PAL</td><td>config.js</td><td>Player snake color palette {t,l,r,tx}</td></tr>
+    <tr><td>BOT_PAL</td><td>config.js</td><td>Array of bot color palettes</td></tr>
+    <tr><td>HUMAN_PALS</td><td>config.js</td><td>Array of color palettes for human MP players</td></tr>
+    <tr><td>MERGE_SPEED</td><td>config.js</td><td>Segment merge animation speed (mutable)</td></tr>
+    <tr><td>SPACING_MULT</td><td>config.js</td><td>Segment spacing multiplier (mutable)</td></tr>
+    <tr><td>MIN_TICK_MS</td><td>config.js</td><td>Minimum tick interval cap</td></tr>
+    <tr><td>canvas, ctx</td><td>render.js</td><td>Canvas element and 2D context</td></tr>
+    <tr><td>W, H</td><td>render.js</td><td>Canvas width/height in pixels</td></tr>
+    <tr><td>CAM</td><td>render.js</td><td>Camera state {yaw, pitch, height, dist, fov}</td></tr>
+    <tr><td>project3(c,y,r)</td><td>render.js</td><td>World→screen projection: returns {x,y,z} or null</td></tr>
+    <tr><td>lerpAngle(from,to,speed)</td><td>render.js</td><td>Smooth angular interpolation (used by steerBot+steerPlayer)</td></tr>
+    <tr><td>G</td><td>game-core.js / settings.js</td><td>Live game state {player, bots, food, specials, running, …}</td></tr>
+    <tr><td>_TID</td><td>game-core.js</td><td>Timer ID registry {pt, bt, ft, st, ct, gs}</td></tr>
+    <tr><td>newSnake(…)</td><td>game-core.js</td><td>Factory: creates a snake object</td></tr>
+    <tr><td>initGame()</td><td>game-core.js</td><td>Start/restart a solo game session</td></tr>
+    <tr><td>endGame(…)</td><td>game-core.js</td><td>Ends game, shows game-over overlay</td></tr>
+    <tr><td>showFlash(msg,color)</td><td>game-core.js</td><td>Screen flash notification</td></tr>
+    <tr><td>TURN_SPEED</td><td>input.js</td><td>Steering radians/tick</td></tr>
+    <tr><td>CTRL_MODE</td><td>input.js</td><td>'felix' or 'joystick'</td></tr>
+    <tr><td>steerPlayer()</td><td>input.js</td><td>Apply input to player snake direction each frame</td></tr>
+    <tr><td>triggerBurst()</td><td>input.js</td><td>Teleport-forward dash</td></tr>
+    <tr><td>fireHook(sn)</td><td>weapons.js</td><td>Launch a hook from a snake</td></tr>
+    <tr><td>fireTailBullet()</td><td>weapons.js</td><td>Fire player's tail segment as projectile</td></tr>
+    <tr><td>isFriendlyFire(a,b)</td><td>multiplayer.js</td><td>True if co-op and both are human players</td></tr>
+    <tr><td>ATHENA</td><td>athena.js</td><td>Athena mode state object {active, level, boundary, …}</td></tr>
+    <tr><td>startAthena()</td><td>athena.js</td><td>Begin Athena challenge mode</td></tr>
+    <tr><td>DAD</td><td>dad.js</td><td>Dad's mode state {active, map, objects, maps[], currentMap} [PLANNED]</td></tr>
+    <tr><td>startDad()</td><td>dad.js</td><td>Set DAD.active, init WebGL canvas, wire collision [PLANNED]</td></tr>
+    <tr><td>loadDadMap(path)</td><td>dad.js</td><td>Fetch JSON, load satellite image, rebuild grid dimensions [PLANNED]</td></tr>
+    <tr><td>DAD.drawBg(now)</td><td>dad.js</td><td>Draw satellite image as WebGL perspective ground each frame [PLANNED]</td></tr>
+    <tr><td>MP</td><td>multiplayer.js</td><td>Multiplayer state {mode, isHost, peer, conns, players, …}</td></tr>
+    <tr><td>initMPOverlay()</td><td>multiplayer.js</td><td>Wire up main menu buttons — called on window load</td></tr>
+    <tr><td>broadcastState(now)</td><td>multiplayer.js</td><td>Send game state to all guest connections</td></tr>
+    <tr><td>mpOnKill(killer,victim)</td><td>multiplayer.js</td><td>Handle kill events in MP (killfeed, respawn triggers)</td></tr>
+    <tr><td>loop(ts)</td><td>main.js</td><td>requestAnimationFrame render loop</td></tr>
+    <tr><td>draw(now)</td><td>main.js</td><td>Full frame render: ground tiles → items → overlays</td></tr>
+    <tr><td>lerpSeg(seg,sn,now)</td><td>main.js</td><td>Interpolate segment position for smooth rendering</td></tr>
+    <tr><td>drawRadar(now)</td><td>main.js</td><td>Radar minimap overlay (lower-left)</td></tr>
+  </tbody>
+</table>
+
+<h2>CFG KEY VALUES</h2>
+<table>
+  <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>COLS / ROWS</td><td>80 / 80</td><td>World grid dimensions</td></tr>
+    <tr><td>TICK_MS</td><td>174</td><td>Base snake step interval (ms)</td></tr>
+    <tr><td>PLAYER_LEN</td><td>6</td><td>Initial player segment count</td></tr>
+    <tr><td>PLAYER_START_VAL</td><td>2</td><td>NEW: initial value for player head (2–256)</td></tr>
+    <tr><td>BOT_MAX</td><td>varies</td><td>Max simultaneous bots (set by difficulty preset)</td></tr>
+    <tr><td>FOOD_FIELD_MAX</td><td>120</td><td>Max food pellets on field</td></tr>
+    <tr><td>FOOD_MS</td><td>8000</td><td>Interval between food spawns (ms)</td></tr>
+    <tr><td>BURST_DIST</td><td>8</td><td>Burst teleport distance (grid cells)</td></tr>
+    <tr><td>BURST_RECHARGE_MS</td><td>4000</td><td>Burst cooldown</td></tr>
+    <tr><td>HOOK_TRAVEL_SEC</td><td>1.2</td><td>Hook flight time (seconds)</td></tr>
+    <tr><td>HOOK_COOLDOWN_MS</td><td>3000</td><td>Hook refire cooldown</td></tr>
+    <tr><td>TAIL_BULLET_COOLDOWN_MS</td><td>5000</td><td>Tail bullet cooldown</td></tr>
+    <tr><td>ROUND_SEC</td><td>300</td><td>Default round time (0 = unlimited)</td></tr>
+    <tr><td>MP_COOP_ROUND_SEC</td><td>300</td><td>Co-op round duration</td></tr>
+    <tr><td>MP_COMP_ROUND_SEC</td><td>480</td><td>Competitive round duration</td></tr>
+    <tr><td>MP_COOP_LARGE_BOT_VAL</td><td>64</td><td>Bot head value threshold for co-op big-kill bonus</td></tr>
+    <tr><td>TERRAIN_Z_SCALE</td><td>5.0</td><td>Athena terrain height amplitude multiplier (dev slider 0.1–5.0×)</td></tr>
+    <tr><td>LEVEL_SPEED_MULT</td><td>1.04</td><td>Speed increase per player level</td></tr>
+    <tr><td>VACUUM_RANGE</td><td>12</td><td>Vacuum special radius (grid cells)</td></tr>
+    <tr><td>VACUUM_DURATION_MS</td><td>8000</td><td>Vacuum effect duration</td></tr>
+    <tr><td>BOOST_DURATION_MS</td><td>5000</td><td>Speed boost duration</td></tr>
+  </tbody>
+</table>
+
+<h2>DATA FLOW</h2>
+<pre>
+  ┌─ index.html ─────────────────────────────────────────────────────┐
+  │  loads scripts in order → all globals shared in window scope     │
+  └──────────────────────────────────────────────────────────────────┘
+
+  GAME TICK (setTimeout loops in game-core.js):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  playerTick()  →  steerPlayer()  →  stepSnake(player)          │
+  │  botTick()     →  steerBot(bot)  →  stepSnake(bot)             │
+  │  spawnFood()   (setInterval, CFG.FOOD_MS)                       │
+  │  spawnBotWave() (setInterval, 4s)                               │
+  └─────────────────────────────────────────────────────────────────┘
+           ↓ updates G (game state)
+  RENDER FRAME (requestAnimationFrame in main.js):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  loop(ts)                                                        │
+  │    tickHooks(ts)  / tickTailBullets(ts)  / tickVacuum(ts)       │
+  │    draw(ts)                                                      │
+  │      ground tiles  →  items (food/specials/segs) sorted by Z    │
+  │      drawHooks / drawTailBullets / drawDecoObjects               │
+  │      fog vignette  →  flash  →  radar  →  action cooldowns      │
+  │    broadcastState(ts)   [host only]                              │
+  └─────────────────────────────────────────────────────────────────┘
+
+  MULTIPLAYER (PeerJS WebRTC):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  HOST:  MP.peer listens → conn.on('data') → hostReceive()       │
+  │         broadcastState() every 50ms in loop()                   │
+  │  GUEST: initGuestGame() → local steer + send angle to host      │
+  │         applyHostState() on each 'state' packet                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+  NEW FEATURE — PLAYER_START_VAL:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  CFG.PLAYER_START_VAL = 2  (config.js)                          │
+  │    ↓ read by initGame()                                          │
+  │  newSnake(…, CFG.PLAYER_START_VAL || 2, true, PLAYER_PAL)       │
+  │    ↓ used in newSnake() isPlayer branch                          │
+  │  segs.push({ …, val: startVal })                                 │
+  │    ↓ controlled live via                                         │
+  │  settings.js: startval-slider (range 2–256, step 2)             │
+  └─────────────────────────────────────────────────────────────────┘
+</pre>
+
+<h2>FUNCTION INDEX (alphabetical)</h2>
+<table>
+  <thead><tr><th>Function</th><th>File</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>absorbVals(sn, vals)</td><td>game-core.js</td><td>Merge eaten values into snake head via 2048 logic</td></tr>
+    <tr><td>applyDifficulty(preset)</td><td>multiplayer.js</td><td>Set CFG from 'easy'/'hard'/'insane' preset</td></tr>
+    <tr><td>applyHostState(d)</td><td>multiplayer.js</td><td>Apply incoming state packet on guest side</td></tr>
+    <tr><td>athenaBoundary()</td><td>athena.js</td><td>Current shrinking boundary radius</td></tr>
+    <tr><td>athenaCheckBoundary(sn)</td><td>athena.js</td><td>Push snake toward center if outside boundary</td></tr>
+    <tr><td>athenaCleanup()</td><td>athena.js</td><td>Reset Athena state, clear intervals</td></tr>
+    <tr><td>athenaDecoCollision(sn)</td><td>athena.js</td><td>Detect snake-deco object collisions</td></tr>
+    <tr><td>athenaGenObjects()</td><td>athena.js</td><td>Spawn decorative objects for current level</td></tr>
+    <tr><td>athenaNextLevel()</td><td>athena.js</td><td>Advance to next Athena level</td></tr>
+    <tr><td>athenaShrink()</td><td>athena.js</td><td>Reduce boundary size each shrink tick</td></tr>
+    <tr><td>botTick()</td><td>game-core.js</td><td>Advance all bot snakes one step</td></tr>
+    <tr><td>broadcastState(now)</td><td>multiplayer.js</td><td>Send game state to all guests (host only)</td></tr>
+    <tr><td>broadcastToAll(msg)</td><td>multiplayer.js</td><td>Send message to all peer connections</td></tr>
+    <tr><td>clearTimers()</td><td>game-core.js</td><td>Clear all game setTimeout/setInterval IDs</td></tr>
+    <tr><td>competitiveRespawnVal(v)</td><td>multiplayer.js</td><td>Compute respawn value: 2^(log2(v)-2)</td></tr>
+    <tr><td>coopSpawnPos()</td><td>multiplayer.js</td><td>Spawn near living teammate for co-op respawn</td></tr>
+    <tr><td>createRoom(mode)</td><td>multiplayer.js</td><td>Host: register PeerJS peer and open waiting room</td></tr>
+    <tr><td>cubeWorldPts(cx,cz,h,s,ang)</td><td>render.js</td><td>8 world-space corners of a terrain-conforming cube (linear plane + surface normal)</td></tr>
+    <tr><td>currentBG()</td><td>config.js</td><td>Get current background color set {bg,grid,edge}</td></tr>
+    <tr><td>depth3(c, r)</td><td>render.js</td><td>Approximate camera-depth for ground tile sorting</td></tr>
+    <tr><td>draw(now)</td><td>main.js</td><td>Full frame render</td></tr>
+    <tr><td>drawAthenaBoundary(now)</td><td>athena.js</td><td>Render shrinking boundary wall</td></tr>
+    <tr><td>drawAthenaFade(now)</td><td>athena.js</td><td>Level transition flash overlay</td></tr>
+    <tr><td>drawBotHookWarnings(ctx)</td><td>weapons.js</td><td>Draw '!' warning above locking-on bots</td></tr>
+    <tr><td>drawCube3(…)</td><td>render.js</td><td>Draw a 3D isometric cube body segment</td></tr>
+    <tr><td>drawDecoObjects(now)</td><td>athena.js</td><td>Render all Athena decorative objects</td></tr>
+    <tr><td>drawHead(…)</td><td>render.js</td><td>Draw snake head with eyes, mouth, emotion</td></tr>
+    <tr><td>drawHooks(now)</td><td>weapons.js</td><td>Render hook rope and tip diamond</td></tr>
+    <tr><td>drawRadar(now)</td><td>main.js</td><td>Radar minimap overlay</td></tr>
+    <tr><td>drawSphere(…)</td><td>render.js</td><td>Draw a 3D sphere for food items</td></tr>
+    <tr><td>drawTailBullets(now)</td><td>weapons.js</td><td>Render tail bullet projectiles</td></tr>
+    <tr><td>edgeSpawnPos()</td><td>multiplayer.js</td><td>Random spawn position on map edge</td></tr>
+    <tr><td>endGame(…)</td><td>game-core.js</td><td>Conclude game session, show game-over screen</td></tr>
+    <tr><td>fireHook(sn)</td><td>weapons.js</td><td>Launch hook projectile from snake</td></tr>
+    <tr><td>firePlayerHook()</td><td>weapons.js</td><td>Fire hook for local player (with MP relay)</td></tr>
+    <tr><td>fireTailBullet()</td><td>weapons.js</td><td>Fire tail segment as bullet</td></tr>
+    <tr><td>fmtVal(v)</td><td>config.js</td><td>Format value for display (K/M suffixes)</td></tr>
+    <tr><td>gc(val)</td><td>config.js</td><td>Get color entry for a tile value</td></tr>
+    <tr><td>ground(c,r,cc,cr,color)</td><td>render.js</td><td>Draw ground tile with terrain height</td></tr>
+    <tr><td>guestDisconnected()</td><td>multiplayer.js</td><td>Handle host disconnect on guest side</td></tr>
+    <tr><td>guestReceive(d)</td><td>multiplayer.js</td><td>Handle incoming data on guest side</td></tr>
+    <tr><td>hideMPOverlay()</td><td>multiplayer.js</td><td>Hide the multiplayer menu overlay</td></tr>
+    <tr><td>hostGame(mode)</td><td>multiplayer.js</td><td>Start game as host, spawn guest snakes</td></tr>
+    <tr><td>hostPlayerLeft(conn)</td><td>multiplayer.js</td><td>Handle guest disconnect mid-game</td></tr>
+    <tr><td>hostReceive(conn,d)</td><td>multiplayer.js</td><td>Handle incoming data from guests on host</td></tr>
+    <tr><td>initGame()</td><td>game-core.js</td><td>Initialize/restart a solo game session</td></tr>
+    <tr><td>initGuestGame(data)</td><td>multiplayer.js</td><td>Set up game state on guest side from welcome data</td></tr>
+    <tr><td>initJoystickHandlers()</td><td>input.js</td><td>Wire touch events for virtual joystick</td></tr>
+    <tr><td>initMPOverlay()</td><td>multiplayer.js</td><td>Wire all main menu button handlers</td></tr>
+    <tr><td>isFriendlyFire(a,b)</td><td>multiplayer.js</td><td>True if co-op mode and both snakes are human</td></tr>
+    <tr><td>joinGame(hostPeerId)</td><td>multiplayer.js</td><td>Guest: connect to a host's PeerJS ID</td></tr>
+    <tr><td>kill(killer,victim)</td><td>game-core.js</td><td>Process snake death and scatter body as food</td></tr>
+    <tr><td>lerpAngle(from,to,speed)</td><td>render.js</td><td>Smooth angle interpolation with wrap</td></tr>
+    <tr><td>lerpSeg(seg,sn,now)</td><td>main.js</td><td>Interpolate segment for smooth rendering</td></tr>
+    <tr><td>loadHS()</td><td>game-core.js</td><td>Load high score array from localStorage</td></tr>
+    <tr><td>localGuestStep(sn)</td><td>multiplayer.js</td><td>Dead-reckoning step for guest's local snake</td></tr>
+    <tr><td>loop(ts)</td><td>main.js</td><td>rAF main loop</td></tr>
+    <tr><td>maybeBotHook(bot)</td><td>weapons.js</td><td>Probabilistic bot hook fire decision</td></tr>
+    <tr><td>minSnackVal()</td><td>game-core.js</td><td>Minimum food value based on current world state</td></tr>
+    <tr><td>mpCoopLargeBotKill(…)</td><td>multiplayer.js</td><td>Scatter bonus food when humans kill large bot</td></tr>
+    <tr><td>mpHostDied(killer,val)</td><td>multiplayer.js</td><td>Respawn host player in MP instead of game-over</td></tr>
+    <tr><td>mpOnKill(killer,victim)</td><td>multiplayer.js</td><td>Handle kill event: killfeed + respawn triggers</td></tr>
+    <tr><td>newSnake(…)</td><td>game-core.js</td><td>Create snake object with given params</td></tr>
+    <tr><td>pickCity(pool)</td><td>config.js</td><td>Pick a random city name for bot/player naming</td></tr>
+    <tr><td>playerTick()</td><td>game-core.js</td><td>Advance player snake one step, check collisions</td></tr>
+    <tr><td>project3(c,y,r)</td><td>render.js</td><td>World grid → screen pixel projection</td></tr>
+    <tr><td>randomFreeCell()</td><td>game-core.js</td><td>Find a random unoccupied grid cell</td></tr>
+    <tr><td>refreshWorldMax()</td><td>config.js</td><td>Update _worldMax for scale calculations</td></tr>
+    <tr><td>renderHS(id,arr)</td><td>game-core.js</td><td>Render high score table rows into DOM element</td></tr>
+    <tr><td>renderWaitingPlayers(p)</td><td>multiplayer.js</td><td>Render waiting room player list</td></tr>
+    <tr><td>resetMPState()</td><td>settings.js</td><td>Destroy peer, clear MP state, return to solo</td></tr>
+    <tr><td>respawnGuest(peerId)</td><td>multiplayer.js</td><td>Spawn a new snake for a returning guest</td></tr>
+    <tr><td>saveHS(hs)</td><td>game-core.js</td><td>Save high score array to localStorage</td></tr>
+    <tr><td>segScale(headVal,idx)</td><td>config.js</td><td>Visual scale for a segment at given index</td></tr>
+    <tr><td>serializeSnake(sn)</td><td>multiplayer.js</td><td>Compact snake → plain object for network send</td></tr>
+    <tr><td>setCtrlMode(mode)</td><td>input.js</td><td>Switch between 'felix' and 'joystick' controls</td></tr>
+    <tr><td>setMPStatus(msg,id)</td><td>multiplayer.js</td><td>Update a status text element in the MP overlay</td></tr>
+    <tr><td>setupHostListeners()</td><td>multiplayer.js</td><td>Listen for incoming peer connections as host</td></tr>
+    <tr><td>showFlash(msg,color)</td><td>game-core.js</td><td>Display a timed flash message on screen</td></tr>
+    <tr><td>showJoystickUI(show)</td><td>input.js</td><td>Show/hide joystick zone and action buttons</td></tr>
+    <tr><td>showJumpButton(show)</td><td>athena.js</td><td>Show/hide Athena jump button</td></tr>
+    <tr><td>showKillFeed(msg,color)</td><td>multiplayer.js</td><td>Append a kill notification to the killfeed div</td></tr>
+    <tr><td>showMPScreen(name)</td><td>multiplayer.js</td><td>Show named sub-screen in MP overlay</td></tr>
+    <tr><td>snakeTickMs(sn)</td><td>config.js</td><td>Compute current tick speed for a snake</td></tr>
+    <tr><td>spawnBoost()</td><td>game-core.js</td><td>Spawn a speed boost special item</td></tr>
+    <tr><td>spawnBot()</td><td>game-core.js</td><td>Spawn a single new bot snake</td></tr>
+    <tr><td>spawnBotWave()</td><td>game-core.js</td><td>Spawn bots up to CFG.BOT_MAX</td></tr>
+    <tr><td>spawnFood()</td><td>game-core.js</td><td>Spawn food pellets up to FOOD_FIELD_MAX</td></tr>
+    <tr><td>spawnInvinc()</td><td>game-core.js</td><td>Spawn an invincibility special item</td></tr>
+    <tr><td>spawnRadar()</td><td>game-core.js</td><td>Spawn a radar special item</td></tr>
+    <tr><td>spawnVacuum()</td><td>game-core.js</td><td>Spawn a vacuum special item</td></tr>
+    <tr><td>spawnX2()</td><td>game-core.js</td><td>Spawn a x2 value multiplier special item</td></tr>
+    <tr><td>startAthena()</td><td>athena.js</td><td>Initialize Athena challenge mode</td></tr>
+    <tr><td>startRespawnCountdown(…)</td><td>multiplayer.js</td><td>3-second respawn overlay countdown</td></tr>
+    <tr><td>startSolo()</td><td>multiplayer.js</td><td>Launch a solo game session</td></tr>
+    <tr><td>steerBot(bot)</td><td>game-core.js</td><td>AI steering for bot snakes using lerpAngle</td></tr>
+    <tr><td>steerPlayer()</td><td>input.js</td><td>Apply input steering to player angle</td></tr>
+    <tr><td>stepSnake(sn)</td><td>game-core.js</td><td>Move snake one cell: update segs, handle eating</td></tr>
+    <tr><td>terrainH(c,r)</td><td>render.js</td><td>Terrain height at grid cell (Athena only)</td></tr>
+    <tr><td>tickHooks(now)</td><td>weapons.js</td><td>Advance all hook projectiles</td></tr>
+    <tr><td>tickTailBullets(now)</td><td>weapons.js</td><td>Advance all tail bullet projectiles</td></tr>
+    <tr><td>tickVacuum(now)</td><td>weapons.js</td><td>Apply vacuum suction to nearby food/snakes</td></tr>
+    <tr><td>triggerBurst()</td><td>input.js</td><td>Burst dash: teleport head forward</td></tr>
+    <tr><td>triggerFall(sn)</td><td>athena.js</td><td>Apply boundary push/damage to snake</td></tr>
+    <tr><td>unprojectAngle(sx,sy)</td><td>render.js</td><td>Screen pixel → world steering angle</td></tr>
+    <tr><td>updateBotHook(bot)</td><td>weapons.js</td><td>Advance bot hook lock-on state machine</td></tr>
+    <tr><td>updateCamera(c,r)</td><td>render.js</td><td>Smooth camera follow toward target</td></tr>
+    <tr><td>updateGameTitle(label)</td><td>settings.js</td><td>Update HUD subtitle text</td></tr>
+    <tr><td>updateHookVisibility()</td><td>input.js</td><td>Show/hide hook button based on HOOK_ENABLED</td></tr>
+    <tr><td>updateHUD()</td><td>game-core.js</td><td>Refresh HUD score, time, spawn value</td></tr>
+    <tr><td>updateHUDPlayers()</td><td>multiplayer.js</td><td>Refresh multiplayer player pill list in HUD</td></tr>
+    <tr><td>updateJoystickUI(now)</td><td>input.js</td><td>Update joystick button cooldown conic sweeps</td></tr>
+    <tr><td>updateLeaderboard()</td><td>render.js</td><td>Refresh in-game leaderboard panel</td></tr>
+    <tr><td>updateWaitingPlayers()</td><td>multiplayer.js</td><td>Refresh waiting room player list DOM</td></tr>
+    <tr><td>voluntaryJump()</td><td>athena.js</td><td>Player-triggered jump over boundary (J key)</td></tr>
+  </tbody>
+</table>
+
+<h2>LOAD DEPENDENCIES DIAGRAM</h2>
+<pre>
+config.js ──────────────────────────────────────────────────┐
+  defines: CFG, gc, VALS, PLAYER_PAL, BOT_PAL, fmtVal, …   │
+  used by: ALL subsequent files                             │
+                                                            ▼
+render.js ──────────────────────────────────────────────────┐
+  needs: CFG, canvas element (#c)                           │
+  defines: ctx, W, H, CAM, project3, lerpAngle, drawCube3  │
+  used by: game-core.js, input.js, weapons.js, main.js      │
+                                                            ▼
+game-core.js ───────────────────────────────────────────────┐
+  needs: CFG, render.js globals, lerpAngle                  │
+  defines: G, _TID, newSnake, initGame, stepSnake, …       │
+  used by: input.js, weapons.js, multiplayer.js, main.js    │
+                                                            ▼
+input.js ───────────────────────────────────────────────────┐
+  needs: canvas, G, CFG, lerpAngle, unprojectAngle          │
+  defines: CTRL_MODE, steerPlayer, triggerBurst, _joy, …   │
+  used by: settings.js, multiplayer.js, main.js             │
+                                                            ▼
+weapons.js ─────────────────────────────────────────────────┐
+  needs: G, CFG, project3, lerpSeg (→ main.js circular ref)│
+  NOTE: lerpSeg is called at runtime, not definition time   │
+  defines: fireHook, tickHooks, fireTailBullet, drawHooks   │
+  used by: main.js, multiplayer.js                          │
+                                                            ▼
+athena.js ──────────────────────────────────────────────────┐
+  needs: G, CFG, project3, ctx, W, H, newSnake, initGame   │
+  defines: ATHENA, startAthena, athenaBoundary, …          │
+  used by: config.js (guarded), render.js (guarded),       │
+           game-core.js (guarded), main.js (guarded)        │
+                                                            ▼
+multiplayer.js ─────────────────────────────────────────────┐
+  needs: EVERYTHING above + ATHENA (by name)                │
+  defines: MP, initMPOverlay, broadcastState, mpOnKill, …  │
+  used by: settings.js, main.js                             │
+                                                            ▼
+settings.js ────────────────────────────────────────────────┐
+  needs: all of the above                                   │
+  defines: updateGameTitle, resetMPState, slider handlers   │
+  IMPORTANT: calls requestAnimationFrame(loop) at bottom    │
+  loop() is in main.js (loaded next) — async so it's fine  │
+                                                            ▼
+main.js ────────────────────────────────────────────────────┐
+  needs: all of the above                                   │
+  defines: loop, draw, lerpSeg, drawRadar                   │
+                                                            ▼
+dad.js ─────────────────────────────────────────────────────┘  [PLANNED v3.2.0]
+  needs: G, CFG, CAM, W, H (from earlier files); WebGL API (browser built-in)
+  defines: DAD, startDad(), loadDadMap(), DAD.drawBg()
+  note: manages a secondary WebGL canvas (#dad-bg) for satellite image ground layer
+        main 2D canvas (#c) stays on top, transparent background in dad mode
+</pre>
+
+</body>
+</html>

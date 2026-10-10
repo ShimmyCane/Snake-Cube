@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Felix's Snake Cubes — Lessons Learned</title>
+<style>
+  body { background:#060a10; color:#c8c8d8; font-family:'Courier New',monospace; font-size:0.78rem; padding:24px 32px; line-height:1.7; max-width:860px; }
+  h1 { color:#00f5c4; letter-spacing:3px; font-size:1.1rem; margin-bottom:4px; }
+  h2 { color:#ff6b35; letter-spacing:2px; font-size:0.85rem; margin-top:28px; margin-bottom:8px; border-bottom:1px solid rgba(255,107,53,0.3); padding-bottom:4px; }
+  h3 { color:#ffcc00; font-size:0.78rem; margin-top:16px; margin-bottom:4px; }
+  pre, code { background:#0c1018; border:1px solid rgba(0,245,196,0.15); border-radius:4px; padding:2px 6px; color:#a8e8d0; font-size:0.72rem; font-family:'Courier New',monospace; }
+  pre { display:block; padding:12px; overflow-x:auto; margin:8px 0; }
+  ul { padding-left:20px; margin:6px 0; }
+  li { margin:3px 0; }
+  .good { color:#44dd44; }
+  .bad  { color:#ff4444; }
+  .note { color:#555570; font-style:italic; }
+  .tag  { display:inline-block; background:rgba(0,245,196,0.12); color:#00f5c4; border-radius:3px; padding:1px 6px; font-size:0.65rem; }
+  .warn { background:rgba(255,107,53,0.1); border-left:3px solid #ff6b35; padding:6px 12px; margin:8px 0; border-radius:0 4px 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>FELIX'S SNAKE CUBES — LESSONS LEARNED</h1>
+<p class="note">Accumulated from the v3.0.x refactor session. Updated as the project evolves.</p>
+
+<h2>1. SCRIPT LOAD ORDER IS EVERYTHING</h2>
+<p>All JS files share a single global scope via plain <code>&lt;script&gt;</code> tags — NOT ES modules. This means:</p>
+<ul>
+  <li>Files must be loaded in dependency order (config → render → game-core → input → weapons → athena → multiplayer → settings → main)</li>
+  <li>A function defined in file N can be <em>referenced</em> in file M (M &lt; N) only inside another function body — not at the top level</li>
+  <li>Top-level code in a file runs immediately when the script tag is parsed</li>
+</ul>
+<div class="warn">
+  <span class="bad">BUG CAUGHT:</span> <code>requestAnimationFrame(loop)</code> was placed in <code>settings.js</code>, which loads before <code>main.js</code> defines <code>loop()</code>. This throws a ReferenceError. <br>
+  <span class="good">FIX:</span> Always put the rAF kickoff at the very end of <code>main.js</code>, after <code>loop()</code> is defined.
+</div>
+
+<h2>2. DOM REFERENCES IN TOP-LEVEL SCRIPT CODE</h2>
+<p><code>settings.js</code> grabs DOM elements at the top level (outside any function):</p>
+<pre>const _settingsBtn = document.getElementById('settings-btn');</pre>
+<p>This is fine <em>only because</em> all <code>&lt;script&gt;</code> tags are at the <strong>bottom of &lt;body&gt;</strong>, after all HTML is parsed. If scripts were in <code>&lt;head&gt;</code>, this would return <code>null</code>.</p>
+<p class="note">Rule: keep all script tags at the bottom of body, after all HTML.</p>
+
+<h2>3. ATHENA GUARD PATTERN</h2>
+<p><code>athena.js</code> loads 6th. Files 1–5 (config, render, game-core, input, weapons) must not assume <code>ATHENA</code> exists at parse time. Use:</p>
+<pre>if (typeof ATHENA !== 'undefined' &amp;&amp; ATHENA.active) { … }</pre>
+<p>Plain <code>ATHENA.active</code> in an early-loaded file causes ReferenceError if that code path runs before athena.js is parsed.</p>
+
+<h2>4. PLAYER_START_VAL TOUCHES MORE THAN ONE PLACE</h2>
+<p>To make everyone start at a given value, three things must all use it — missing any one breaks the intent:</p>
+<ul>
+  <li><code>newSnake()</code> — the <code>isPlayer</code> branch used to hardcode <code>val:2</code>; must use <code>val:startVal</code></li>
+  <li><code>initGame()</code> player call — pass <code>CFG.PLAYER_START_VAL || 2</code> as the <code>startVal</code> argument</li>
+  <li><code>initGame()</code> initial bot loop — same value, so bots match the player's starting level</li>
+  <li><code>_worldMax</code> init — must seed to <code>CFG.PLAYER_START_VAL</code> so food size scaling is correct from frame one</li>
+</ul>
+<div class="warn">
+  <span class="bad">GOTCHA:</span> <code>_worldMax = 2</code> at the start of <code>initGame()</code> means all food spawns as tiny pellets even if the player starts at 1024. Food value floor = <code>worldMax / 64</code>, so seeding <code>_worldMax</code> correctly is critical.
+</div>
+
+<h2>5. THE MERGE SYSTEM REQUIRES POWERS OF 2</h2>
+<p>Segments merge when two equal values meet, doubling: <code>2+2→4</code>, <code>512+512→1024</code>. The entire value chain is powers of 2. Non-power-of-2 values (e.g. 6, 10, 14) never cleanly merge and produce odd leaderboard numbers.</p>
+<p><span class="good">RULE:</span> Any config value that feeds into a segment's <code>val</code> must be a power of 2. Sliders for such values should snap to powers of 2.</p>
+<pre>// Map a linear slider (exponent 1–11) to powers of 2
+function applyStartValSlider(exp) {
+  CFG.PLAYER_START_VAL = Math.pow(2, exp); // 2, 4, 8 … 2048
+}</pre>
+
+<h2>6. SLIDER RANGE ENCODING STRATEGY</h2>
+<p>Two patterns used in this project:</p>
+<ul>
+  <li><strong>Linear value</strong>: <code>min/max/step</code> match actual values (tick speed, bot count, etc.)</li>
+  <li><strong>Exponential value</strong>: slider stores an exponent; JS converts to actual value. Use this for any value that grows multiplicatively (start val, difficulty multipliers).</li>
+</ul>
+<p>Always add a <code>--pct</code> CSS variable so the slider fill gradient tracks correctly:</p>
+<pre>slider.style.setProperty('--pct', pct + '%');</pre>
+
+<h2>7. MONOLITHIC FILE vs SPLIT FILES</h2>
+<p>The project maintains both:</p>
+<ul>
+  <li><strong>Split files</strong> (<code>index.html</code> + <code>js/</code> + <code>css/</code>) — the working/editing copy</li>
+  <li><strong>Versioned snapshots</strong> (<code>snake2048_vX.Y.Z.html</code>) — single self-contained files for sharing/archiving</li>
+</ul>
+<p>Changes must be applied to both. See <a href="process.html">process.html</a> for the workflow.</p>
+
+<h2>8. SPAWNED BOTS vs INITIAL BOTS</h2>
+<p>Initial bots (created in <code>initGame()</code>) use a hardcoded <code>startVal</code> — this is where <code>PLAYER_START_VAL</code> needed to be threaded through.</p>
+<p>Bots spawned later via <code>spawnBot()</code> already scale to <code>playerHeadVal × CFG.DIFFICULTY</code> — no change needed there.</p>
+
+<h2>9. FOOD SCALING IS DYNAMIC</h2>
+<p><code>spawnFood()</code> computes a minimum food value as <code>worldMax / 64</code>. This means:</p>
+<ul>
+  <li>If you start at 1024, minimum food = 16 (not 2)</li>
+  <li>Food always stays somewhat relevant relative to the world's largest snake</li>
+  <li>Stale low-value food on the field gets upgraded: <code>if(f.val &lt; loFood) f.val = loFood</code></li>
+</ul>
+
+<h2>10. CFG IS MUTABLE AT RUNTIME</h2>
+<!-- LESSON 10 content unchanged -->
+
+<h2>11. SLIDER INIT MUST READ FROM CFG, NOT OVERWRITE IT</h2>
+<p>Every slider calls an <code>applyXxxSlider(value)</code> function that writes into <code>CFG</code>. The natural pattern is to call that same function at page load to set a startup default — but this overwrites whatever <code>config.js</code> already set.</p>
+<div class="warn">
+  <span class="bad">BUG:</span> <code>applyStartValSlider(1)</code> at page load set <code>CFG.PLAYER_START_VAL = 2</code>, silently overwriting any value set in <code>config.js</code>. Setting <code>PLAYER_START_VAL: 1024</code> in config had no effect because settings.js ran after config.js and reset it.
+</div>
+<p><span class="good">RULE:</span> Slider init should sync the slider UI <em>to</em> the CFG value, not push a hardcoded default into CFG. Pattern:</p>
+<pre>// WRONG — overwrites config.js
+applyStartValSlider(1);
+
+// CORRECT — reads CFG, syncs slider to match
+const _initExp = Math.max(1, Math.min(11, Math.round(Math.log2(Math.max(2, CFG.PLAYER_START_VAL || 2)))));
+applyStartValSlider(_initExp);</pre>
+<p>Apply this pattern to any slider whose backing CFG value might be intentionally set in <code>config.js</code>. Sliders for purely runtime values (camera, bot speed) are fine to init with a hardcoded default.</p>
+
+<p>Dev sliders modify <code>CFG</code> properties live (e.g. <code>CFG.TICK_MS = v</code>). This works because <code>CFG</code> is declared <code>const</code> (the binding is constant, not the contents). Some properties (like <code>NUM_BOTS</code>) are computed once at parse time from <code>WORLD_DENSITY</code> — changing <code>WORLD_DENSITY</code> later does NOT recompute these. Those need manual recalculation in their slider handler.</p>
+
+<h2>12. DOM INJECTION KEEPS index.html SLIM</h2>
+<p>Complex HTML (settings panel, MP overlay, joystick) was hardcoded in <code>index.html</code>, making it 300+ lines and defeating the purpose of splitting files. The fix: each JS file creates its own DOM elements via an IIFE at the top of the file, and <code>index.html</code> stays a ~70-line skeleton.</p>
+<pre>// At the top of settings.js — runs immediately when the script is parsed
+(function() {
+  const el = document.createElement('div');
+  el.id = 'settings-panel';
+  el.innerHTML = `... all slider HTML ...`;
+  document.body.appendChild(el);
+})();
+
+// Then the rest of settings.js can safely do:
+const _settingsPanel = document.getElementById('settings-panel'); // exists!</pre>
+<div class="warn">
+  <span class="bad">ORDERING:</span> The build IIFE must run BEFORE any top-level <code>const x = document.getElementById('...')</code> that references the generated element. Since all scripts are at the bottom of <code>&lt;body&gt;</code> and run in order, putting the IIFE at the very top of the file guarantees the element exists when the rest of the file's top-level code runs.
+</div>
+<p>For the monolithic snapshot, all three IIFEs are merged into one at the very top of the <code>&lt;script&gt;</code> block — before the TWEAK ZONE — so they run first.</p>
+<p>Elements referenced only inside <strong>function bodies</strong> (like <code>joy-zone</code> in <code>initJoystickHandlers()</code>) don't have this constraint: they just need to exist by the time the function is <em>called</em>, not when the file is parsed.</p>
+
+
+<h2>14. TERRAIN-CONFORMING CUBES — LINEAR PLANE + SURFACE NORMAL</h2>
+<p>To make snake cubes tilt with rolling terrain without distorting their shape, <code>cubeWorldPts()</code> uses a <strong>two-step approach</strong>:</p>
+
+<h3>Step 1 — Bottom ring: locally-flat terrain plane</h3>
+<p>Compute the terrain height and gradient at the cube's <em>centre</em> only, then extrapolate a flat plane for all 4 corners. This keeps the bottom face coplanar (no 2D shear):</p>
+<pre>const h0 = terrainH(cx, cz);
+const sx = terrainH(cx + 0.5, cz) - terrainH(cx - 0.5, cz); // dH/dX
+const sz = terrainH(cx, cz + 0.5) - terrainH(cx, cz - 0.5); // dH/dZ
+const bot = corners.map(c => ({
+  wx: c.wx,
+  wy: h0 + (c.wx - cx) * sx + (c.wz - cz) * sz,  // tangent plane
+  wz: c.wz,
+}));</pre>
+
+<h3>Step 2 — Top ring: offset along surface normal</h3>
+<p>The cube's height direction is the terrain surface normal <code>N = normalize(-sx, 1, -sz)</code>. Each top corner is the matching bottom corner shifted by <code>h</code> along N:</p>
+<pre>const nLen = Math.sqrt(sx*sx + 1 + sz*sz);
+const top = bot.map(b => ({
+  wx: b.wx - (sx / nLen) * h,
+  wy: b.wy + h / nLen,
+  wz: b.wz - (sz / nLen) * h,
+}));</pre>
+<p>Result: all 6 faces are flat parallelograms. In non-Athena mode, <code>terrainH=0</code> everywhere → <code>sx=sz=0</code>, <code>nLen=1</code> → identical to the original flat-ground cube.</p>
+
+<div class="warn">
+  <span class="bad">WRONG APPROACH:</span> Sampling <code>terrainH()</code> at each of the 4 world-space corners individually produces a non-planar bottom face (the 4 points don't sit on the same plane when terrain curves). This makes the side faces into warped quadrilaterals — visually a 2D shear/parallelogram effect, not a 3D tilt. <em>Never use per-corner terrainH for cube vertices.</em>
+</div>
+
+<div class="warn">
+  <span class="bad">CAMERA DISTORTION:</span> At low camera heights (≤8), even correct terrain tilt causes large perspective swings. Two mitigations:
+  <ul style="margin-top:4px">
+    <li>Raise the default <code>CAM.height</code> (8 → 14) — reduces angular movement for the same vertical displacement.</li>
+    <li>Dampen camera terrain-follow: <code>camGroundY = terrainH * 0.4</code> with a slow lerp (0.08) so the camera slides through dips rather than snapping to them.</li>
+  </ul>
+</div>
+
+<p>Face features (eyes, mouth) in <code>drawHead</code> still use the <em>centre</em> terrain height (<code>terrainH(col, row)</code>) as their Y base — sampling per-feature would cause jitter.</p>
+
+<h2>15. TOP-LEVEL DEAD CODE SILENTLY KILLS A WHOLE SCRIPT</h2>
+<p>Any <em>top-level</em> reference to an undefined name throws a <code>ReferenceError</code> immediately when the browser parses the script tag. Everything after that line in the same file is never executed — no error panel, no fallback, just silent failure.</p>
+<div class="warn">
+  <span class="bad">BUG CAUGHT:</span> <code>multiplayer.js</code> had dead code left at the top level from a refactor:
+  <pre>const _origDraw = draw;   // draw is defined in main.js — loads AFTER multiplayer.js
+const _origLoop = loop;   // same — throws ReferenceError here</pre>
+  This threw <code>ReferenceError: draw is not defined</code>, killing the rest of <code>multiplayer.js</code> — including the <code>_startApp()</code> that registers the MP overlay and audio. Result: MP overlay never showed, buttons dead, audio broken. The error was masked because the runtime error handler was also dead (hadn't registered yet).
+</div>
+<p><span class="good">RULE:</span> Top-level code in file M must only reference names defined in files 1 … M-1 (already parsed). Names in later files (M+1 …) can only be referenced inside <em>function bodies</em> — they are resolved at call time, not parse time.</p>
+<p>Always grep for top-level references to late-defined globals after any refactor. An unused <code>const _x = globalFromLaterFile</code> is a parse-time bomb.</p>
+
+<h2>13. window.load TIMING ON file:// PROTOCOL</h2>
+<p>When the game runs via <code>file://</code>, all scripts load from disk instantly — there is no network latency. This can cause a subtle ordering problem in split-file builds where scripts are at the very end of <code>&lt;body&gt;</code>:</p>
+<ul>
+  <li>In a monolith, the browser has more body HTML <em>after</em> the <code>&lt;script&gt;</code> block to process before firing <code>window.load</code>.</li>
+  <li>In a split-file build with scripts at the very end of <code>&lt;body&gt;</code>, after the last <code>&lt;/script&gt;</code> the browser may fire <code>window.load</code> before an earlier script's <code>window.addEventListener('load', …)</code> listener has had a chance to register.</li>
+</ul>
+<div class="warn">
+  <span class="bad">BUG:</span> <code>multiplayer.js</code> registered <code>window.addEventListener('load', _startApp)</code> at the end of the file. On <code>file://</code> with scripts at the bottom of body, <code>window.load</code> sometimes fires <em>before</em> this listener was registered, so <code>_startApp()</code> never ran and the MP overlay never replaced the old start screen.
+</div>
+<p><span class="good">FIX:</span> Guard the listener registration with a <code>readyState</code> check:</p>
+<pre>function _startApp() {
+  document.getElementById('s-start').classList.add('hidden');
+  initMPOverlay();
+}
+if (document.readyState === 'complete') {
+  _startApp();               // window.load already fired — call directly
+} else {
+  window.addEventListener('load', _startApp);
+}</pre>
+<p>This pattern works on both <code>file://</code> (where <code>readyState</code> may already be <code>'complete'</code>) and <code>http://</code> (where it will be <code>'loading'</code> or <code>'interactive'</code> during script execution).</p>
+<p class="note">The <code>ℹ</code> diagnostic button in the HUD shows <code>readyState</code> captured at head-script time, DOMContentLoaded, and load — useful for confirming which branch actually ran.</p>
+
+<h2>17. BILLBOARD SPRITES ARE INHERENTLY TWO-SIDED; BOX FACES ARE NOT</h2>
+<p>Canvas 2D has no backface culling — every filled path is painted regardless of winding order. Despite this, hardcoded face-draw order on box-shaped objects (cup, dice, pencil) produces the wrong result when the camera is on the "wrong" side: the near face is painted first and then covered by the far face.</p>
+<p><span class="good">FIX:</span> Collect all faces as data <code>{ pts, fill }</code>, sort by average projected <code>z</code> depth descending (far first), then paint:</p>
+<pre>function _paintSorted(faces) {
+  faces
+    .map(f => ({ ...f, d: f.pts.reduce((s,p) => s+p.z, 0) / f.pts.length }))
+    .sort((a,b) => b.d - a.d)
+    .forEach(f => _face(f.pts, f.fill));
+}</pre>
+<p>Also ensure all 6 faces of a box are present — the original code omitted the back faces, so the object was invisible from one side even though the missing faces would have been correctly sorted to draw-first.</p>
+<p>Billboard shapes (screen-space circles, screen-space rectangles) are genuinely two-sided because they face the viewport by construction. Trees use this: trunk is a screen-space rect centred on the projected world position; canopy is a screen-space circle. No sorting needed for these — they always look correct.</p>
+
+<h2>18. PERSPECTIVE-CORRECT WORLD-TO-SCREEN SIZING USES _camF / depth</h2>
+<p>To draw a world-unit object (tree trunk width, canopy radius) at the correct screen size, use the focal length from <code>render.js</code>:</p>
+<pre>screenPixels = worldUnits * _camF / cameraDepth</pre>
+<p><code>_camF</code> is updated each frame by <code>_updateCamTrig()</code> in render.js. <code>cameraDepth</code> is the <code>.z</code> field returned by <code>project3()</code>. This is exactly what the WebGL vertex shader uses — keeping the 2D canvas overlay in sync with the WebGL ground plane.</p>
+<div class="warn">
+  <span class="bad">WRONG:</span> Using a fixed heuristic like <code>120 / depth</code> or <code>Math.min(16, someConst / depth)</code> breaks at different zoom levels and map scales. Use <code>_camF</code> for anything that must match world geometry.
+</div>
+
+<h2>19. ROAD / POLYLINE PROXIMITY CHECK — USE SEGMENT DISTANCE, NOT POINT DISTANCE</h2>
+<p>Roads in map-builder are stored as polylines (arrays of control points). Checking only those points for proximity misses the vast majority of the road — a long straight road with just two endpoints would only boost the player at the very ends.</p>
+<p>The correct check is the minimum distance from the query point to <em>each line segment</em> in the polyline:</p>
+<pre>function _ptSegDist2(px, pz, ax, az, bx, bz) {
+  const dx = bx-ax, dz = bz-az;
+  const len2 = dx*dx + dz*dz;
+  if (len2 &lt; 1e-10) return (px-ax)**2 + (pz-az)**2;
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx + (pz-az)*dz) / len2));
+  return (px-(ax+t*dx))**2 + (pz-(az+t*dz))**2;
+}</pre>
+<p>Then compare <code>_ptSegDist2(...) &lt; threshold²</code> (use squared distance to avoid a sqrt per segment). The threshold is <code>(roadHalfWidth + CFG_DAD.ROAD_BOOST_OFFSET)²</code> so narrower roads have a tighter boost zone.</p>
+<p class="note">This same pattern applies to any "near a path" query: hook range checks, road rendering, AI path following.</p>
+
+<h2>20. SPAWN FILTERING IN DAD'S MODE — CHECK ALL SPAWN SITES AGAINST _isWall</h2>
+<p>When Dad's mode is active, the collision grid (<code>DAD._collGrid</code>) marks every cell inside a building footprint. Any spawn function that picks a random cell must reject wall cells, or food and bots appear inside buildings.</p>
+<p>Three places need the check — missing any one creates visible bugs:</p>
+<ul>
+  <li><code>spawnFood()</code> — inner retry loop condition</li>
+  <li><code>randomFreeCell()</code> — used by all specials (x2, boost, radar, invinc, vacuum)</li>
+  <li><code>initGame()</code> initial bot placement loop — ring-spread positions can land in buildings</li>
+</ul>
+<p><code>spawnBot()</code> already had the check from the start. The player spawn had a spiral-out search from the map centre.</p>
+<p>Pattern for any new spawn site:</p>
+<pre>if (typeof DAD !== 'undefined' && DAD.active && DAD._isWall(col, row)) continue; // or retry</pre>
+
+<h2>21. DUPLICATE const ACROSS SPLIT FILES KILLS THE LATER SCRIPT SILENTLY</h2>
+<p>All JS files share a single global scope. Declaring <code>const FOO = …</code> in two different files is a <code>SyntaxError: Identifier 'FOO' has already been declared</code> — the entire second file stops executing at that line. Every symbol defined after the duplicate (including exported functions like <code>startDad</code>) is never created.</p>
+<div class="warn">
+  <span class="bad">BUG CAUGHT:</span> <code>CFG_DAD</code> was already declared in <code>config.js</code> (with <code>CAR_PIXELS</code>, <code>SCALE</code>, <code>MAPS</code>). Adding a second <code>const CFG_DAD</code> in <code>dad.js</code> threw a SyntaxError at that line, stopping dad.js before <code>startDad</code> was defined. The diagnostic panel reported <em>"js/dad.js loaded but 'startDad' is not defined"</em> — the correct signal.<br>
+  <span class="good">FIX:</span> Merge the new fields into the existing <code>CFG_DAD</code> in <code>config.js</code> and remove the duplicate declaration from <code>dad.js</code>.
+</div>
+<p><span class="good">RULE:</span> Before adding any <code>const</code> / <code>let</code> / <code>function</code> declaration to a new file, grep all other JS files for that name first:</p>
+<pre>grep -r "const CFG_DAD" js/</pre>
+<p>The diagnostic panel's MISSING GLOBALS section is the fastest way to spot this: if a file loaded (FILES = ✓) but its key global is missing (GLOBALS = ✗), the cause is either a runtime error or a redeclaration SyntaxError early in the file.</p>
+<p class="note">Note: <code>node --check file.js</code> and <code>new Function(src)</code> both pass for this class of error because they only see one file at a time. The error only surfaces when both files are in the same scope (i.e., in the browser).</p>
+
+<h2>16. OVERLAY z-index BLOCKS HUD BUTTONS</h2>
+<p>Fullscreen overlays use <code>position:fixed; inset:0; z-index:100</code>. If <code>#hud</code> has no <code>z-index</code> it sits in the default stacking context (z-index: auto ≈ 0) — <em>below</em> the overlay — even though it is visually above it due to opacity and layout order. Clicks on HUD buttons pass through to the overlay behind.</p>
+<div class="warn">
+  <span class="bad">BUG CAUGHT:</span> After the MP overlay was shown, clicking the ⚙ and ℹ HUD buttons had no effect because the <code>.ov</code> overlay (<code>z-index:100</code>) captured all pointer events even though the HUD was visually in front of it.
+</div>
+<p><span class="good">FIX:</span> Give <code>#hud</code> its own stacking context at a higher z-index:</p>
+<pre>/* styles.css */
+#hud {
+  position: relative;   /* creates stacking context */
+  z-index: 150;         /* above overlays at z-index:100 */
+}</pre>
+<p class="note">Rule: any element that must be interactive above a fullscreen overlay needs <code>position</code> + a higher <code>z-index</code> than the overlay.</p>
+
+</body>
+</html>

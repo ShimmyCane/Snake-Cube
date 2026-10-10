@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Snake Cubes">
+<title>Felix's Snake Cubes v3.2.0</title>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  FELIX'S SNAKE CUBES — v3.3.1 - minor updates
+  ═══════════════════════════════════════════════════════════════════════
+
+  FILE MAP
+  ────────────────────────────────────────────────────────────────────────
+  css/styles.css       All visual styles and layout
+
+  js/config.js         CFG constants, color palettes, audio playlist,
+                       world-size helpers, fmtVal(), gc(), segScale()
+
+  js/render.js         Canvas setup, camera (CAM), 3D isometric projection,
+                       drawCube3(), drawHead(), drawSphere(), terrain height,
+                       lerpAngle(), updateCamera(), updateLeaderboard()
+
+  js/game-core.js      G (live game state), newSnake(), initGame(), endGame(),
+                       stepSnake(), playerTick(), botTick(), steerBot(),
+                       food/special spawning, kill(), HUD updates, high scores
+
+  js/input.js          360° steering via mouse / touch / keyboard,
+                       virtual joystick UI (injects joy-zone DOM),
+                       triggerBurst(), steerPlayer(), setCtrlMode()
+
+  js/weapons.js        Hook projectile (fireHook, tickHooks, drawHooks),
+                       tail bullet (fireTailBullet, tickTailBullets),
+                       vacuum special (tickVacuum), bot hook AI (maybeBotHook)
+
+  js/athena.js         Athena challenge mode — shrinking boundary,
+                       decorative objects, level progression, jump mechanic
+
+  js/multiplayer.js    PeerJS WebRTC lobby (host / guest), co-op & versus modes,
+                       broadcastState(), respawn logic, kill-feed,
+                       injects mp-overlay DOM on load
+
+  js/settings.js       Dev controls panel (injects settings-panel DOM),
+                       all slider handlers, home button, resetMPState(),
+                       calls requestAnimationFrame(loop) to start the game
+
+  js/main.js           loop(), draw(), lerpSeg(), drawRadar() — render pipeline
+
+  ═══════════════════════════════════════════════════════════════════════
+
+  SCRIPT LOAD ORDER  (all globals share window scope — NOT ES modules)
+  ────────────────────────────────────────────────────────────────────────
+  1. config.js       → CFG, WORLD_DENSITY, VALS, gc(), BOT_PAL, fmtVal …
+  2. render.js       → canvas, ctx, W, H, CAM, project3(), drawCube3(), lerpAngle …
+  3. game-core.js    → G, _TID, newSnake(), initGame(), stepSnake(), kill(), showFlash …
+  4. input.js        → CTRL_MODE, steerPlayer(), triggerBurst(), joystick handlers
+  5. weapons.js      → fireHook(), tickHooks(), fireTailBullet(), tickVacuum() …
+  6. athena.js       → ATHENA, startAthena(), drawAthenaBoundary() …
+  7. multiplayer.js  → MP, initMPOverlay(), broadcastState(), mpOnKill() …
+  8. settings.js     → slider wiring, updateGameTitle(), resetMPState()
+                       ⚠ calls requestAnimationFrame(loop) — loop() is in main.js
+                         which loads next; safe because rAF fires asynchronously
+  9. main.js         → loop(), draw(), lerpSeg(), drawRadar()
+
+  ═══════════════════════════════════════════════════════════════════════
+
+  KEY GLOBALS
+  ────────────────────────────────────────────────────────────────────────
+  CFG            config.js         All tunable game constants
+  G              game-core.js      Live game state {player, bots, food, specials, …}
+  CAM            render.js         Camera state {yaw, pitch, height, dist, fov}
+  ATHENA         athena.js         Athena mode state {active, level, boundary, …}
+  MP             multiplayer.js    Multiplayer state {mode, isHost, peer, conns, …}
+  _TID           game-core.js      Timer handle registry — cleared on restart
+  CTRL_MODE      input.js          'felix' (hold-to-steer) or 'joystick'
+
+  ═══════════════════════════════════════════════════════════════════════
+
+  GAME TICK  (setTimeout loops inside game-core.js)
+  ────────────────────────────────────────────────────────────────────────
+  playerTick()  →  steerPlayer()  →  stepSnake(player)
+  botTick()     →  steerBot(bot)  →  stepSnake(bot)
+  spawnFood() / spawnBotWave()  via setInterval
+
+  RENDER FRAME  (requestAnimationFrame started by settings.js)
+  ────────────────────────────────────────────────────────────────────────
+  loop(ts)
+    tickHooks(ts) / tickTailBullets(ts) / tickVacuum(ts)
+    draw(ts)
+      ground tiles  →  items (food / specials / segs) sorted by Z
+      drawHooks / drawTailBullets / drawDecoObjects
+      fog vignette  →  flash  →  radar  →  action cooldowns
+    broadcastState(ts)   [host only in MP]
+
+  MULTIPLAYER  (PeerJS WebRTC)
+  ────────────────────────────────────────────────────────────────────────
+  HOST:   MP.peer listens → conn.on('data') → hostReceive()
+          broadcastState() sends full state every ~50 ms
+  GUEST:  initGuestGame() → steer locally + send angle to host
+          applyHostState() on each incoming 'state' packet
+
+  ═══════════════════════════════════════════════════════════════════════
+
+  WHERE TO LOOK FOR COMMON TASKS
+  ────────────────────────────────────────────────────────────────────────
+  Change game speed          config.js  → CFG.TICK_MS, CFG.BOT_SPEED
+  Change starting conditions config.js  → CFG.PLAYER_START_VAL, CFG.PLAYER_LEN
+  Change bot difficulty      config.js  → CFG.DIFFICULTY, CFG_EXPERT.*
+  Change food/special rates  config.js  → CFG.FOOD_MS, CFG.X2_INTERVAL_MS …
+  Change world size          config.js  → CFG.COLS, CFG.ROWS, WORLD_DENSITY
+  Change camera feel         render.js  → CAM object
+  Change snake colors        config.js  → ROYGBIV, BOT_PAL, PLAYER_PAL
+  Change Athena levels       athena.js  → athenaLevelCFG()
+  Change MP round duration   config.js  → CFG.MP_COOP_ROUND_SEC / MP_COMP_ROUND_SEC
+  Add a new weapon           weapons.js (logic) + index.html (button) + input.js (key)
+  Add a new slider           settings.js (HTML + handler) + config.js (CFG value)
+  Change music playlist      config.js  → CFG_AUDIO.PLAYLIST
+
+  Full architecture details → schematic.html
+  Patterns & pitfalls       → lessons-learned.html
+  Workflow & version bumps  → process.html
+  ═══════════════════════════════════════════════════════════════════════ -->
+
+<script>
+// ── File load error tracker ──────────────────────────────────────────────────
+// All styles are inline so this panel works even when styles.css fails to load.
+window._LOAD = {
+  files: {
+    'css/styles.css':    'pending',
+    'js/config.js':      'pending',
+    'js/render.js':      'pending',
+    'js/game-core.js':   'pending',
+    'js/input.js':       'pending',
+    'js/weapons.js':     'pending',
+    'js/athena.js':      'pending',
+    'js/multiplayer.js': 'pending',
+    'js/settings.js':    'pending',
+    'js/main.js':        'pending',
+    'js/dad.js':         'pending'
+  },
+  runtimeErrors: [],
+
+  ok: function(f) {
+    this.files[f] = 'ok';
+  },
+
+  fail: function(f) {
+    this.files[f] = 'error';
+    this._render();
+  },
+
+  // Called after all scripts have loaded — checks critical globals exist.
+  // Uses eval('typeof name') instead of window[name] because const/let globals
+  // are NOT properties of window, even though they are accessible as identifiers.
+  verify: function() {
+    var checks = [
+      { global: 'CFG',            file: 'js/config.js'      },
+      { global: 'project3',       file: 'js/render.js'      },
+      { global: 'initGame',       file: 'js/game-core.js'   },
+      { global: 'steerPlayer',    file: 'js/input.js'       },
+      { global: 'fireHook',       file: 'js/weapons.js'     },
+      { global: 'startAthena',    file: 'js/athena.js'      },
+      { global: 'initMPOverlay',  file: 'js/multiplayer.js' },
+      { global: 'updateGameTitle',file: 'js/settings.js'    },
+      { global: 'loop',           file: 'js/main.js'        },
+      { global: 'startDad',       file: 'js/dad.js'         }
+    ];
+    var failed = false;
+    for (var i = 0; i < checks.length; i++) {
+      var defined;
+      try { defined = eval('typeof ' + checks[i].global) !== 'undefined'; }
+      catch(e) { defined = false; }
+      if (!defined) {
+        this.runtimeErrors.push(
+          checks[i].file + ' loaded but \'' + checks[i].global + '\' is not defined — likely a syntax error inside the file.'
+        );
+        failed = true;
+      }
+    }
+    if (failed) this._render();
+  },
+
+  _render: function() {
+    var panel = document.getElementById('_load-error-panel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = '_load-error-panel';
+      panel.style.cssText = [
+        'position:fixed', 'inset:0', 'background:#060a10',
+        'color:#c8c8d8', 'font-family:Courier New,monospace',
+        'font-size:0.78rem', 'padding:36px 44px', 'z-index:99999',
+        'overflow:auto', 'line-height:1.9', 'box-sizing:border-box'
+      ].join(';');
+      var target = document.body || document.documentElement;
+      target.appendChild(panel);
+    }
+
+    // File status rows
+    var rows = '';
+    for (var f in this.files) {
+      var s = this.files[f];
+      var icon  = s === 'ok' ? '✓' : s === 'error' ? '✗' : '·';
+      var color = s === 'ok' ? '#00f5c4' : s === 'error' ? '#ff3f6c' : '#444460';
+      var note  = s === 'error' ? '&nbsp;&nbsp;<span style="color:#ff3f6c">← FAILED — file not found or blocked</span>'
+                : s === 'pending' ? '&nbsp;&nbsp;<span style="color:#444460">(not reached — an earlier file failed)</span>'
+                : '';
+      rows += '<div><span style="color:' + color + ';display:inline-block;width:14px">' + icon + '</span>&nbsp;&nbsp;' + f + note + '</div>';
+    }
+
+    // Runtime / missing-global errors
+    var rtRows = '';
+    for (var i = 0; i < this.runtimeErrors.length; i++) {
+      rtRows += '<div style="color:#ff6b35;margin-top:4px">⚠  ' + this.runtimeErrors[i] + '</div>';
+    }
+
+    panel.innerHTML =
+      '<div style="color:#ff3f6c;font-size:1rem;letter-spacing:3px;margin-bottom:6px">⚠  LOAD ERROR</div>' +
+      '<div style="color:#555570;font-size:0.68rem;letter-spacing:2px;margin-bottom:24px">FELIX\'S SNAKE CUBES — v3.1.1</div>' +
+
+      '<div style="color:#ffcc00;letter-spacing:1px;margin-bottom:8px">FILE STATUS</div>' +
+      '<div style="border-left:2px solid #1a1a2e;padding-left:16px;margin-bottom:24px">' + rows + '</div>' +
+
+      (rtRows
+        ? '<div style="color:#ffcc00;letter-spacing:1px;margin-bottom:8px">MISSING GLOBALS</div>' +
+          '<div style="border-left:2px solid #1a1a2e;padding-left:16px;margin-bottom:24px">' + rtRows + '</div>'
+        : '') +
+
+      '<div style="color:#ffcc00;letter-spacing:1px;margin-bottom:8px">COMMON CAUSES &amp; FIXES</div>' +
+      '<div style="border-left:2px solid #1a1a2e;padding-left:16px;color:#888;margin-bottom:24px">' +
+        '<div>1.  The <span style="color:#c8c8d8">js/</span> or <span style="color:#c8c8d8">css/</span> folder is missing — both must sit in the same' +
+        '    folder as <span style="color:#c8c8d8">snake2048_v3.1.1.html</span>.</div>' +
+        '<div>2.  A file was renamed or deleted — check the names match exactly.</div>' +
+        '<div>3.  Opened via <span style="color:#c8c8d8">file://</span> — browsers block local script loading.' +
+        '    Use a local server instead: <span style="color:#00f5c4">npx serve .</span> then open' +
+        '    <span style="color:#00f5c4">http://localhost:3000</span></div>' +
+        '<div>4.  A syntax error inside a JS file can cause it to be skipped.' +
+        '    Open the browser console (F12) for the exact line.</div>' +
+      '</div>' +
+
+      '<div style="color:#555570;font-size:0.68rem">Once fixed, reload the page. &nbsp;|&nbsp; Full architecture: schematic.html</div>';
+  }
+};
+
+// Catch runtime JS errors and surface them in the panel.
+// Ignore cross-origin masked errors (e.g. PeerJS CDN): browsers report these
+// as "Script error." with lineno 0 and no filename — there's nothing actionable.
+window.addEventListener('error', function(e) {
+  if (!e.message || e.message === 'Script error.' || (!e.filename && e.lineno === 0)) return;
+  var src = e.filename ? e.filename.replace(/.*\//, '') : 'unknown';
+  window._LOAD.runtimeErrors.push(
+    src + ' — line ' + e.lineno + ': ' + e.message
+  );
+  window._LOAD._render();
+});
+
+// ── ReadyState capture for the ℹ diagnostic panel ──
+window._diagRS = { head: document.readyState };
+document.addEventListener('DOMContentLoaded', function() { window._diagRS.dcl = document.readyState; });
+window.addEventListener('load', function() { window._diagRS.load = document.readyState; });
+
+// ── Live diagnostics panel — opened by the ℹ HUD button ──
+window._DIAG = {
+  toggle: function() {
+    var p = document.getElementById('_diag-panel');
+    if (p && p.style.display !== 'none') { p.style.display = 'none'; return; }
+    this._render();
+  },
+  _render: function() {
+    var p = document.getElementById('_diag-panel');
+    if (!p) {
+      p = document.createElement('div');
+      p.id = '_diag-panel';
+      p.style.cssText = [
+        'position:fixed','top:48px','right:8px','width:320px',
+        'max-height:80vh','background:#0c1018','color:#c8c8d8',
+        'font-family:Courier New,monospace','font-size:0.68rem',
+        'padding:14px 16px','z-index:10000','overflow-y:auto',
+        'border:1px solid rgba(0,245,196,0.25)','border-radius:6px',
+        'line-height:1.8','box-sizing:border-box'
+      ].join(';');
+      document.body.appendChild(p);
+    }
+
+    var fileHtml = '';
+    for (var f in window._LOAD.files) {
+      var s = window._LOAD.files[f];
+      var ic = s==='ok' ? '✓' : s==='error' ? '✗' : '·';
+      var cl = s==='ok' ? '#00f5c4' : s==='error' ? '#ff3f6c' : '#444460';
+      fileHtml += '<div><span style="color:'+cl+'">'+ic+'</span> '+f+'</div>';
+    }
+
+    var gList = ['CFG','project3','initGame','steerPlayer','fireHook','startAthena','initMPOverlay','updateGameTitle','loop','startDad'];
+    var globHtml = '';
+    for (var i = 0; i < gList.length; i++) {
+      var def; try { def = eval('typeof '+gList[i]) !== 'undefined'; } catch(e2) { def = false; }
+      globHtml += '<div><span style="color:'+(def?'#00f5c4':'#ff3f6c')+'">'+(def?'✓':'✗')+'</span> '+gList[i]+'</div>';
+    }
+
+    var mp = document.getElementById('mp-overlay');
+    var ss = document.getElementById('s-start');
+    var sp = document.getElementById('settings-panel');
+    var jz = document.getElementById('joy-zone');
+    function tf(b) { return b ? '<span style="color:#00f5c4">✓</span>' : '<span style="color:#ffcc00">✗</span>'; }
+    var domHtml =
+      '<div>'+tf(!!mp)+' #mp-overlay'+(mp?' · hidden='+mp.classList.contains('hidden'):' (missing)')+'</div>'+
+      '<div>'+tf(!!ss)+' #s-start'+(ss?' · hidden='+ss.classList.contains('hidden'):' (missing)')+'</div>'+
+      '<div>'+tf(!!sp)+' #settings-panel'+(sp?'':' (missing)')+'</div>'+
+      '<div>'+tf(!!jz)+' #joy-zone'+(jz?'':' (missing)')+'</div>';
+
+    var errs = window._LOAD.runtimeErrors;
+    var errHtml = errs.length === 0
+      ? '<div style="color:#444460">none caught</div>'
+      : errs.map(function(e3){ return '<div style="color:#ff6b35;word-break:break-all">⚠ '+e3+'</div>'; }).join('');
+
+    var rs = window._diagRS || {};
+    function sec(t, b) {
+      return '<div style="color:#ffcc00;letter-spacing:1px;margin-bottom:3px">'+t+'</div>'+
+             '<div style="border-left:2px solid #1a1a2e;padding-left:10px;margin-bottom:10px">'+b+'</div>';
+    }
+
+    p.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+        '<span style="color:#00f5c4;font-size:0.78rem;letter-spacing:2px">DIAGNOSTICS</span>'+
+        '<button onclick="document.getElementById(\'_diag-panel\').style.display=\'none\'"'+
+          ' style="background:none;border:none;color:#555570;cursor:pointer;font-size:1rem;line-height:1;padding:0">✕</button>'+
+      '</div>'+
+
+      sec('ENV',
+        '<div>protocol: <b style="color:#c8c8d8">'+location.protocol+'</b></div>'+
+        '<div>readyState · head: <b style="color:#c8c8d8">'+(rs.head||'?')+'</b>'+
+          '  · DCL: <b style="color:#c8c8d8">'+(rs.dcl||'…')+'</b>'+
+          '  · load: <b style="color:#c8c8d8">'+(rs.load||'…')+'</b></div>'
+      )+
+      sec('FILES', fileHtml)+
+      sec('GLOBALS', globHtml)+
+      sec('DOM', domHtml)+
+      sec('ERRORS', errHtml)+
+      '<div style="color:#444460;margin-top:6px;font-size:0.6rem">Click ℹ again to refresh · ✕ to close</div>';
+
+    p.style.display = 'block';
+  }
+};
+</script>
+
+<link rel="stylesheet" href="css/styles.css"
+      onload="window._LOAD.ok('css/styles.css')"
+      onerror="window._LOAD.fail('css/styles.css')">
+</head>
+<body>
+
+<div id="hud">
+  <div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:64px">
+    <div class="pill"><div class="lbl">Spawn</div><div class="val" id="spv" style="color:#ff6b35">–</div></div>
+    <span id="mode-badge" class="hidden"></span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <h1>FELIX'S SNAKE CUBES</h1>
+    <div id="hud-subtitle"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <div class="pill"><div class="lbl">Time</div><div class="val" id="tv">5:00</div></div>
+    <button id="home-btn" class="hud-icon-btn" title="Home">🏠</button>
+    <button id="settings-btn" class="hud-icon-btn" title="Dev Controls">⚙️</button>
+    <button id="info-btn" class="hud-icon-btn" title="Diagnostics" onclick="window._DIAG && window._DIAG.toggle()">ℹ</button>
+  </div>
+</div>
+<div id="hud-players"></div>
+<div id="killfeed"></div>
+<div id="respawn-overlay" class="hidden">
+  <div id="respawn-timer"></div>
+  <div id="respawn-msg">respawning...</div>
+</div>
+<canvas id="dad-bg" style="position:fixed;inset:0;z-index:0;pointer-events:none;display:none"></canvas>
+<canvas id="c"></canvas>
+<div id="burst-bar"><div id="burst-fill"></div></div>
+<div id="burst-label">SPACE · BURST</div>
+<div id="leaderboard">
+  <div class="lb-title">🏆 Leaders</div>
+  <div id="lb-rows"></div>
+</div>
+<div class="ov" id="s-start">
+  <h2>FELIX'S<br>SNAKE CUBES</h2>
+  <p>Touch &amp; hold to steer · Hold mouse to point · A/D or ←/→ to turn · Eat smaller cubes · Avoid bigger snakes</p>
+  <div style="display:flex;gap:12px;margin-top:4px">
+    <button class="btn" id="b-beginner">BEGINNER</button>
+    <button class="btn" style="background:#ff6b35;box-shadow:0 0 20px rgba(255,107,53,.3)" id="b-expert">EXPERT</button>
+  </div>
+  <div id="dad-map-btns" style="margin-top:8px;display:flex;flex-direction:column;gap:8px"></div>
+  <div id="hs0"></div>
+</div>
+<div class="ov hidden" id="s-over">
+  <h2 id="ot">GAME OVER</h2>
+  <p class="big" id="os"></p>
+  <p id="or"></p>
+  <table><thead><tr><th>#</th><th>Score</th><th>Date</th></tr></thead>
+    <tbody id="hsb"></tbody></table>
+  <button class="btn" id="b-restart">PLAY AGAIN</button>
+  <button onclick="resetAllHighScores()" style="margin-top: 15px; background: transparent; color: #ff4a4a; border: 2px solid #ff4a4a; border-radius: 20px; padding: 10px 24px; font-family: inherit; font-weight: bold; cursor: pointer; text-shadow: 0 0 5px #ff4a4a; box-shadow: 0 0 10px rgba(255, 74, 74, 0.2);">RESET HIGH SCORES</button>
+</div>
+
+<!-- settings-panel injected by js/settings.js -->
+<!-- mp-overlay injected by js/multiplayer.js -->
+<!-- joy-zone, joy-action-btns injected by js/input.js -->
+
+<script>
+  // Explicitly tie it to the window scope so the inline onclick button can always find it
+  window.resetAllHighScores = function() {
+    if (confirm("Are you sure you want to completely wipe out all high scores?")) {
+      localStorage.clear(); 
+      if (window.G && window.G.player) {
+        window.player_start_val = 2; 
+      }
+      location.reload();
+    }
+  };
+</script>
+
+
+<!-- CFG constants, palettes, audio playlist, world-size helpers -->
+<script src="js/config.js"
+        onload="window._LOAD.ok('js/config.js')"
+        onerror="window._LOAD.fail('js/config.js')"></script>
+
+<!-- canvas, camera, 3D projection, drawCube3, terrain, lerpAngle -->
+<script src="js/render.js"
+        onload="window._LOAD.ok('js/render.js')"
+        onerror="window._LOAD.fail('js/render.js')"></script>
+
+<!-- G state, snake logic, bot AI, food/special spawning, HUD, high scores -->
+<script src="js/game-core.js"
+        onload="window._LOAD.ok('js/game-core.js')"
+        onerror="window._LOAD.fail('js/game-core.js')"></script>
+
+<!-- 360° steering, joystick UI (injects DOM), triggerBurst -->
+<script src="js/input.js"
+        onload="window._LOAD.ok('js/input.js')"
+        onerror="window._LOAD.fail('js/input.js')"></script>
+
+<!-- hook, tail bullet, vacuum, bot hook AI -->
+<script src="js/weapons.js"
+        onload="window._LOAD.ok('js/weapons.js')"
+        onerror="window._LOAD.fail('js/weapons.js')"></script>
+
+<!-- Athena challenge mode: shrinking boundary, levels, deco objects -->
+<script src="js/athena.js"
+        onload="window._LOAD.ok('js/athena.js')"
+        onerror="window._LOAD.fail('js/athena.js')"></script>
+
+<!-- PeerJS lobby, co-op/versus modes, respawn, kill-feed (injects DOM) -->
+<script src="js/multiplayer.js"
+        onload="window._LOAD.ok('js/multiplayer.js')"
+        onerror="window._LOAD.fail('js/multiplayer.js')"></script>
+
+<!-- dev sliders, home button, G init, starts rAF loop (injects DOM) -->
+<script src="js/settings.js"
+        onload="window._LOAD.ok('js/settings.js')"
+        onerror="window._LOAD.fail('js/settings.js')"></script>
+
+<!-- loop(), draw(), lerpSeg(), drawRadar() — render pipeline entry point -->
+<script src="js/main.js"
+        onload="window._LOAD.ok('js/main.js')"
+        onerror="window._LOAD.fail('js/main.js')"></script>
+
+<!-- Dad's mode — WebGL satellite ground, loadDadMap(), startDad(), DAD.drawBg() -->
+<script src="assets/walteria-map.js"
+        onerror="console.warn('walteria-map.js failed to load')"></script>
+<script src="assets/Dalian-map.js"
+        onerror="console.warn('Dalian-map.js failed to load')"></script>
+<script src="js/dad.js"
+        onload="window._LOAD.ok('js/dad.js')"
+        onerror="window._LOAD.fail('js/dad.js')"></script>
+
+<!-- Verify critical globals exist after all scripts have run -->
+<script>window._LOAD.verify();</script>
+<!-- Note: initMPOverlay() is called from multiplayer.js using a readyState guard
+     so it works on both file:// (load may have already fired) and http:// -->
+
+</body>
+</html>

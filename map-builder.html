@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Felix Snake Cube — Map Builder</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #1a1a2e; color: #e0e0e0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none; }
+
+/* ── Toolbar ── */
+#toolbar {
+  background: #0d0d1a;
+  border-bottom: 1px solid #2a2a3e;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+#toolbar h1 { color: #00f5c4; font-size: 0.72rem; letter-spacing: 3px; white-space: nowrap; }
+.sep { width: 1px; background: #2a2a3e; height: 22px; flex-shrink: 0; }
+.tool-group { display: flex; gap: 4px; align-items: center; }
+.tool-group > label { font-size: 0.55rem; color: #555; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+
+button {
+  background: #1a1a2e;
+  color: #888;
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 4px 9px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.62rem;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  transition: border-color 0.1s, color 0.1s;
+}
+button:hover { border-color: #00f5c4; color: #00f5c4; }
+button.active { background: #00f5c4; color: #000; border-color: #00f5c4; font-weight: bold; }
+button.accent { border-color: #00f5c4; color: #00f5c4; }
+button.danger { border-color: #ff4444; color: #ff4444; }
+button.danger:hover { background: #ff4444; color: #000; }
+
+input[type=number], input[type=text] {
+  background: #111;
+  color: #e0e0e0;
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.62rem;
+  width: 56px;
+}
+input[type=number]:focus, input[type=text]:focus { outline: none; border-color: #00f5c4; }
+
+#status-bar { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.status-item { font-size: 0.57rem; color: #555; white-space: nowrap; }
+.status-item span { color: #888; }
+.key-hint { font-size: 0.52rem; color: #383848; }
+
+/* ── Main area ── */
+#canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+#builder-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  cursor: crosshair;
+  display: block;
+}
+
+/* ── Info panel ── */
+#info-panel {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid #2a2a3e;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.58rem;
+  color: #666;
+  line-height: 2;
+  pointer-events: none;
+  z-index: 10;
+}
+#info-panel b { color: #888; }
+
+/* ── Hint overlay ── */
+#hint {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid #2a2a3e;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.54rem;
+  color: #444;
+  line-height: 1.9;
+  pointer-events: none;
+  z-index: 10;
+}
+#hint .k { color: #00f5c4; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>MAP BUILDER</h1>
+  <div class="sep"></div>
+
+  <div class="tool-group">
+    <label>Tools</label>
+    <button class="tool active" data-tool="select">SELECT</button>
+    <button class="tool" data-tool="tree">🌳 TREE</button>
+    <button class="tool" data-tool="building">🏠 BUILDING</button>
+    <button class="tool" data-tool="road">🛣 ROAD</button>
+    <button class="tool" data-tool="erase">✕ ERASE</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="tool-group">
+    <label>Car px</label>
+    <input type="number" id="car-pixels" value="20" min="4" max="120" step="1" title="Image pixels per grid cell (1 cell ≈ 1 car width)">
+  </div>
+  <div class="tool-group">
+    <label>Road w</label>
+    <input type="number" id="road-width" value="14" min="2" max="80" step="1" title="Road stroke width in image pixels">
+  </div>
+  <div class="tool-group">
+    <label>Bldg h</label>
+    <input type="number" id="building-height" value="2" min="0" max="20" step="1" title="Building height in grid cells (0 = flat)">
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="tool-group">
+    <button id="btn-grid" title="Toggle grid overlay (G)">GRID</button>
+    <button id="btn-undo" title="Undo (Ctrl+Z)">UNDO</button>
+    <button id="btn-clear" class="danger" title="Clear all objects">CLEAR</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="tool-group">
+    <button id="btn-image" title="Load a satellite image">LOAD IMG</button>
+    <button id="btn-load" title="Load existing JSON to continue editing">LOAD JSON</button>
+    <button id="btn-export" class="accent" title="Export map data as JSON">EXPORT JSON</button>
+    <button id="btn-export-js" class="accent" title="Export self-contained JS bundle (embeds image)">EXPORT JS</button>
+  </div>
+
+  <div id="status-bar">
+    <div class="status-item">cursor <span id="s-cursor">—</span></div>
+    <div class="status-item">objects <span id="s-objects">0</span></div>
+    <div class="status-item">grid <span id="s-grid">—</span></div>
+    <div class="key-hint">S=select T=tree B=building R=road E=erase · G=grid · Ctrl+Z=undo · Del=delete · Esc=cancel</div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="builder-canvas"></canvas>
+
+  <div id="info-panel">
+    <b id="ip-tool">Tool: select</b><br>
+    <span id="ip-grid">Grid: off</span><br>
+    <span id="ip-size">Size: —</span><br>
+    <span id="ip-sel">Selected: —</span>
+  </div>
+
+  <div id="hint">
+    <span class="k">BUILDING</span>  click pts · dbl-click or right-click to close<br>
+    <span class="k">ROAD</span>      click pts · dbl-click or right-click to end<br>
+    <span class="k">SELECT</span>    click to pick · drag tree to move<br>
+    <span class="k">SCROLL</span>    zoom · <span class="k">SPACE+DRAG</span> or <span class="k">MMB</span> to pan<br>
+    <span class="k">DEL</span>       delete selected · <span class="k">ESC</span> cancel drawing
+  </div>
+</div>
+
+<!-- hidden file inputs -->
+<input type="file" id="file-image" accept="image/*" style="display:none">
+<input type="file" id="file-json"  accept=".json"   style="display:none">
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  MAP BUILDER — Felix Snake Cube
+//  Exports JSON schema:
+//  { id, image, carPixels, imageWidth, imageHeight,
+//    gridCols, gridRows, objects: [{type,…}] }
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('builder-canvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+// ── State ────────────────────────────────────────────────────────
+const S = {
+  tool:            'select',
+  carPixels:       20,
+  roadWidth:       14,
+  buildingHeight:  2,
+  showGrid:  false,
+  img:       null,
+  imgSrc:    'assets/walteria.png',
+  imgW:      0,
+  imgH:      0,
+  view:      { x: 0, y: 0, scale: 1 },
+  objects:   [],          // { id, type, …data }
+  selected:  null,
+  drawing:   null,        // { type, pts[], cursor? } — in-progress polygon/line
+  nextId:    1,
+  history:   [],          // JSON snapshots for undo (max 60)
+  // interaction
+  pan:  { active: false, sx: 0, sy: 0, vx: 0, vy: 0 },
+  drag: { active: false, obj: null, ox: 0, oy: 0 },
+  spaceDown: false,
+};
+
+// ── Resize ───────────────────────────────────────────────────────
+function resizeCanvas() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  redraw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// ── Image ────────────────────────────────────────────────────────
+function loadImage(src) {
+  const img = new Image();
+  img.onload = () => {
+    S.img   = img;
+    S.imgW  = img.naturalWidth;
+    S.imgH  = img.naturalHeight;
+    const sc = Math.min(canvas.width / S.imgW, canvas.height / S.imgH) * 0.88;
+    S.view.scale = sc;
+    S.view.x = (canvas.width  - S.imgW * sc) / 2;
+    S.view.y = (canvas.height - S.imgH * sc) / 2;
+    updateInfoPanel();
+    redraw();
+  };
+  img.onerror = () => redraw();
+  img.src = src;
+}
+loadImage(S.imgSrc);
+
+// ── Coord helpers ────────────────────────────────────────────────
+function toImg(sx, sy) {
+  return { x: (sx - S.view.x) / S.view.scale, y: (sy - S.view.y) / S.view.scale };
+}
+function toScr(ix, iy) {
+  return { x: ix * S.view.scale + S.view.x, y: iy * S.view.scale + S.view.y };
+}
+
+// ── Undo ─────────────────────────────────────────────────────────
+function snapshot() {
+  S.history.push(JSON.stringify(S.objects));
+  if (S.history.length > 60) S.history.shift();
+}
+function undo() {
+  if (!S.history.length) return;
+  S.objects  = JSON.parse(S.history.pop());
+  S.selected = null;
+  S.drawing  = null;
+  updateStatus();
+  redraw();
+}
+
+// ── Object management ────────────────────────────────────────────
+function addObj(obj) {
+  snapshot();
+  obj.id = S.nextId++;
+  S.objects.push(obj);
+  S.selected = obj;
+  updateStatus();
+}
+function removeObj(id) {
+  snapshot();
+  S.objects  = S.objects.filter(o => o.id !== id);
+  if (S.selected && S.selected.id === id) S.selected = null;
+  updateStatus();
+}
+
+// ── Hit testing ──────────────────────────────────────────────────
+function hitTest(ix, iy) {
+  const R = 10 / S.view.scale;
+  for (let i = S.objects.length - 1; i >= 0; i--) {
+    const o = S.objects[i];
+    if (o.type === 'tree') {
+      if (Math.hypot(o.x - ix, o.y - iy) < R) return o;
+    } else if (o.type === 'building' || o.type === 'road') {
+      for (const [px, py] of o.pts) {
+        if (Math.hypot(px - ix, py - iy) < R) return o;
+      }
+      for (let j = 0; j < o.pts.length - 1; j++) {
+        if (segDist(ix, iy, o.pts[j], o.pts[j+1]) < R) return o;
+      }
+      if (o.type === 'building' && o.pts.length > 2) {
+        if (segDist(ix, iy, o.pts[o.pts.length-1], o.pts[0]) < R) return o;
+      }
+    }
+  }
+  return null;
+}
+function segDist(px, py, [ax, ay], [bx, by]) {
+  const dx = bx-ax, dy = by-ay, len2 = dx*dx+dy*dy;
+  if (!len2) return Math.hypot(px-ax, py-ay);
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx+(py-ay)*dy)/len2));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+
+// ── Draw ─────────────────────────────────────────────────────────
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0e0e1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!S.img) {
+    ctx.fillStyle = '#333';
+    ctx.font = '13px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click LOAD IMG to open a satellite image', canvas.width/2, canvas.height/2);
+    return;
+  }
+
+  // satellite image
+  ctx.save();
+  ctx.translate(S.view.x, S.view.y);
+  ctx.scale(S.view.scale, S.view.scale);
+  ctx.drawImage(S.img, 0, 0);
+
+  // grid overlay
+  if (S.showGrid && S.carPixels > 2) {
+    ctx.strokeStyle = 'rgba(0,245,196,0.2)';
+    ctx.lineWidth   = 0.6 / S.view.scale;
+    const step = S.carPixels;
+    for (let x = 0; x <= S.imgW; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, S.imgH); ctx.stroke();
+    }
+    for (let y = 0; y <= S.imgH; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S.imgW, y); ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // placed objects
+  for (const o of S.objects) drawObj(o, o === S.selected);
+
+  // in-progress drawing
+  if (S.drawing) drawInProgress(S.drawing);
+}
+
+function drawObj(o, sel) {
+  ctx.save();
+  if (o.type === 'tree') {
+    const s = toScr(o.x, o.y);
+    const r = Math.max(7, 10 * S.view.scale);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI*2);
+    ctx.fillStyle   = sel ? 'rgba(60,255,120,0.65)' : 'rgba(30,180,70,0.5)';
+    ctx.strokeStyle = sel ? '#3cff78' : '#1eb446';
+    ctx.lineWidth   = sel ? 2 : 1.5;
+    ctx.fill();
+    ctx.stroke();
+    ctx.font = `${Math.max(10, Math.round(14 * S.view.scale))}px sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle    = '#fff';
+    ctx.fillText('🌳', s.x, s.y);
+  } else if (o.type === 'building') {
+    if (o.pts.length < 2) { ctx.restore(); return; }
+    ctx.beginPath();
+    const f = toScr(...o.pts[0]);
+    ctx.moveTo(f.x, f.y);
+    for (let i = 1; i < o.pts.length; i++) {
+      const p = toScr(...o.pts[i]);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle   = sel ? 'rgba(255,140,0,0.22)' : 'rgba(255,90,0,0.12)';
+    ctx.strokeStyle = sel ? '#ffaa00' : '#ff6400';
+    ctx.lineWidth   = sel ? 2.5 : 1.5;
+    ctx.fill();
+    ctx.stroke();
+    drawMassing(o, sel);
+    for (const pt of o.pts) {
+      const p = toScr(...pt);
+      ctx.beginPath(); ctx.arc(p.x, p.y, sel ? 5 : 3.5, 0, Math.PI*2);
+      ctx.fillStyle = sel ? '#ffaa00' : '#ff6400'; ctx.fill();
+    }
+  } else if (o.type === 'road') {
+    if (o.pts.length < 2) { ctx.restore(); return; }
+    ctx.beginPath();
+    const f = toScr(...o.pts[0]);
+    ctx.moveTo(f.x, f.y);
+    for (let i = 1; i < o.pts.length; i++) {
+      const p = toScr(...o.pts[i]);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = sel ? '#ffe033' : '#ccbb00';
+    ctx.lineWidth   = Math.max(2, (o.width || 14) * S.view.scale * 0.25);
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+    for (const pt of o.pts) {
+      const p = toScr(...pt);
+      ctx.beginPath(); ctx.arc(p.x, p.y, sel ? 5 : 3.5, 0, Math.PI*2);
+      ctx.fillStyle = sel ? '#ffe033' : '#ccbb00'; ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawMassing(o, sel) {
+  const h = o.height != null ? o.height : 2;
+  if (h <= 0 || o.pts.length < 3) return;
+  // Offset direction matches the game's NW camera: mostly up, slightly left
+  const offX = -S.carPixels * h * 0.28 * S.view.scale;
+  const offY = -S.carPixels * h * 0.45 * S.view.scale;
+  const bot  = o.pts.map(pt => toScr(...pt));
+  const top  = bot.map(p => ({ x: p.x + offX, y: p.y + offY }));
+  const n    = bot.length;
+  ctx.save();
+  // Side walls
+  for (let i = 0; i < n; i++) {
+    const a = bot[i], b = bot[(i + 1) % n];
+    const ta = top[i], tb = top[(i + 1) % n];
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(tb.x, tb.y);
+    ctx.lineTo(ta.x, ta.y);
+    ctx.closePath();
+    ctx.fillStyle   = sel ? 'rgba(180,90,0,0.30)' : 'rgba(120,55,0,0.20)';
+    ctx.strokeStyle = sel ? '#bb6600' : '#885500';
+    ctx.lineWidth   = 0.8;
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Top face
+  ctx.beginPath();
+  ctx.moveTo(top[0].x, top[0].y);
+  for (let i = 1; i < n; i++) ctx.lineTo(top[i].x, top[i].y);
+  ctx.closePath();
+  ctx.fillStyle   = sel ? 'rgba(255,195,75,0.58)' : 'rgba(200,130,40,0.42)';
+  ctx.strokeStyle = sel ? '#ffcc44' : '#dd9922';
+  ctx.lineWidth   = sel ? 2 : 1.5;
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawInProgress(d) {
+  if (!d.pts.length) return;
+  const col = d.type === 'building' ? '#ffaa00' : '#ffe033';
+  ctx.save();
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = 1.5;
+  ctx.lineCap     = 'round';
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  const f = toScr(...d.pts[0]);
+  ctx.moveTo(f.x, f.y);
+  for (let i = 1; i < d.pts.length; i++) {
+    const p = toScr(...d.pts[i]);
+    ctx.lineTo(p.x, p.y);
+  }
+  if (d.cursor) ctx.lineTo(d.cursor.x, d.cursor.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (const pt of d.pts) {
+    const p = toScr(...pt);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.fill();
+  }
+  // close-loop hint for building
+  if (d.type === 'building' && d.pts.length > 2 && d.cursor) {
+    ctx.strokeStyle = 'rgba(255,170,0,0.3)';
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.moveTo(d.cursor.x, d.cursor.y);
+    const f2 = toScr(...d.pts[0]);
+    ctx.lineTo(f2.x, f2.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Mouse events ─────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 1 || S.spaceDown) {
+    S.pan = { active: true, sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button !== 0) return;
+
+  const im = toImg(e.offsetX, e.offsetY);
+
+  if (S.tool === 'select') {
+    const hit = hitTest(im.x, im.y);
+    S.selected = hit || null;
+    if (hit && hit.type === 'tree') {
+      S.drag = { active: true, obj: hit, ox: hit.x - im.x, oy: hit.y - im.y };
+    }
+    if (hit && hit.type === 'building') {
+      const h = hit.height != null ? hit.height : 2;
+      document.getElementById('building-height').value = h;
+      S.buildingHeight = h;
+    }
+    updateInfoPanel();
+    redraw();
+
+  } else if (S.tool === 'tree') {
+    addObj({ type: 'tree', x: im.x, y: im.y });
+    redraw();
+
+  } else if (S.tool === 'building') {
+    if (!S.drawing) S.drawing = { type: 'building', pts: [] };
+    S.drawing.pts.push([im.x, im.y]);
+    redraw();
+
+  } else if (S.tool === 'road') {
+    if (!S.drawing) S.drawing = { type: 'road', pts: [], width: S.roadWidth };
+    S.drawing.pts.push([im.x, im.y]);
+    redraw();
+
+  } else if (S.tool === 'erase') {
+    const hit = hitTest(im.x, im.y);
+    if (hit) { removeObj(hit.id); redraw(); }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const im = toImg(e.offsetX, e.offsetY);
+  document.getElementById('s-cursor').textContent =
+    `${Math.round(im.x)}, ${Math.round(im.y)}`;
+
+  if (S.pan.active) {
+    S.view.x = S.pan.vx + (e.clientX - S.pan.sx);
+    S.view.y = S.pan.vy + (e.clientY - S.pan.sy);
+    redraw(); return;
+  }
+  if (S.drag.active && S.drag.obj) {
+    S.drag.obj.x = im.x + S.drag.ox;
+    S.drag.obj.y = im.y + S.drag.oy;
+    redraw(); return;
+  }
+  if (S.drawing) {
+    S.drawing.cursor = { x: e.offsetX, y: e.offsetY };
+    redraw();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (S.pan.active) {
+    S.pan.active = false;
+    canvas.style.cursor = S.spaceDown ? 'grab' : 'crosshair';
+  }
+  if (S.drag.active) { snapshot(); S.drag = { active: false, obj: null }; }
+});
+
+canvas.addEventListener('dblclick', e => {
+  finishDrawing();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  finishDrawing();
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.13 : 1 / 1.13;
+  const mx = e.offsetX, my = e.offsetY;
+  S.view.x = mx - (mx - S.view.x) * factor;
+  S.view.y = my - (my - S.view.y) * factor;
+  S.view.scale = Math.max(0.05, Math.min(20, S.view.scale * factor));
+  redraw();
+}, { passive: false });
+
+function finishDrawing() {
+  if (!S.drawing) return;
+  const d = S.drawing;
+  S.drawing = null;
+  if (d.type === 'building' && d.pts.length >= 3) {
+    addObj({ type: 'building', pts: d.pts, height: S.buildingHeight });
+  } else if (d.type === 'road' && d.pts.length >= 2) {
+    addObj({ type: 'road', pts: d.pts, width: S.roadWidth });
+  }
+  redraw();
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    S.spaceDown = true;
+    canvas.style.cursor = 'grab';
+    return;
+  }
+  if (e.ctrlKey && e.key === 'z') { undo(); return; }
+  if (e.key === 'Escape') {
+    S.drawing = null; S.selected = null; updateInfoPanel(); redraw(); return;
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace')) {
+    if (S.selected) { removeObj(S.selected.id); redraw(); return; }
+    if (S.drawing && S.drawing.pts.length) {
+      S.drawing.pts.pop();
+      if (!S.drawing.pts.length) S.drawing = null;
+      redraw(); return;
+    }
+  }
+  const shortcuts = { s:'select', t:'tree', b:'building', r:'road', e:'erase' };
+  if (shortcuts[e.key.toLowerCase()]) setTool(shortcuts[e.key.toLowerCase()]);
+  if (e.key.toLowerCase() === 'g') toggleGrid();
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    S.spaceDown = false;
+    if (!S.pan.active) canvas.style.cursor = 'crosshair';
+  }
+});
+
+// ── Tool buttons ──────────────────────────────────────────────────
+function setTool(name) {
+  S.tool    = name;
+  S.drawing = null;
+  document.querySelectorAll('button[data-tool]').forEach(b =>
+    b.classList.toggle('active', b.dataset.tool === name));
+  document.getElementById('ip-tool').textContent = 'Tool: ' + name;
+}
+document.querySelectorAll('button[data-tool]').forEach(b =>
+  b.addEventListener('click', () => setTool(b.dataset.tool)));
+
+function toggleGrid() {
+  S.showGrid = !S.showGrid;
+  document.getElementById('btn-grid').classList.toggle('active', S.showGrid);
+  updateInfoPanel();
+  redraw();
+}
+document.getElementById('btn-grid').addEventListener('click', toggleGrid);
+document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!S.objects.length) return;
+  if (!confirm('Clear all objects?')) return;
+  snapshot();
+  S.objects = []; S.selected = null; S.drawing = null;
+  updateStatus(); redraw();
+});
+
+document.getElementById('car-pixels').addEventListener('input', e => {
+  S.carPixels = parseInt(e.target.value) || 20;
+  updateInfoPanel(); redraw();
+});
+document.getElementById('road-width').addEventListener('input', e => {
+  S.roadWidth = parseInt(e.target.value) || 14;
+});
+document.getElementById('building-height').addEventListener('input', e => {
+  S.buildingHeight = parseInt(e.target.value) || 0;
+  if (S.selected && S.selected.type === 'building') {
+    snapshot();
+    S.selected.height = S.buildingHeight;
+    redraw();
+  }
+});
+
+// ── Load image ────────────────────────────────────────────────────
+document.getElementById('btn-image').addEventListener('click', () =>
+  document.getElementById('file-image').click());
+document.getElementById('file-image').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  S.imgSrc = f.name;
+  loadImage(URL.createObjectURL(f));
+  e.target.value = '';
+});
+
+// ── Export JSON ───────────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click', exportJSON);
+function exportJSON() {
+  const id = S.imgSrc.split('/').pop().replace(/\.[^.]+$/, '');
+  const data = {
+    id,
+    image:       'assets/' + S.imgSrc.split('/').pop(),
+    carPixels:   S.carPixels,
+    imageWidth:  S.imgW,
+    imageHeight: S.imgH,
+    gridCols:    S.imgW ? Math.round(S.imgW / S.carPixels) : 0,
+    gridRows:    S.imgH ? Math.round(S.imgH / S.carPixels) : 0,
+    objects:     S.objects.map(({ id: _id, ...rest }) => rest),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = id + '.json';
+  a.click();
+}
+
+// ── Export JS bundle ──────────────────────────────────────────────
+document.getElementById('btn-export-js').addEventListener('click', exportJS);
+function exportJS() {
+  if (!S.img) { alert('Load a satellite image first.'); return; }
+  const id  = S.imgSrc.split('/').pop().replace(/\.[^.]+$/, '');
+  const key = 'assets/' + id + '.json';
+  const data = {
+    id,
+    image:       'assets/' + S.imgSrc.split('/').pop(),
+    carPixels:   S.carPixels,
+    imageWidth:  S.imgW,
+    imageHeight: S.imgH,
+    gridCols:    S.imgW ? Math.round(S.imgW / S.carPixels) : 0,
+    gridRows:    S.imgH ? Math.round(S.imgH / S.carPixels) : 0,
+    objects:     S.objects.map(({ id: _id, ...rest }) => rest),
+  };
+  // Embed the satellite image as a data URL so the bundle works on file://
+  try {
+    const tmp = document.createElement('canvas');
+    tmp.width  = S.imgW;
+    tmp.height = S.imgH;
+    tmp.getContext('2d').drawImage(S.img, 0, 0);
+    data.imageDataURL = tmp.toDataURL('image/png');
+  } catch (e) {
+    alert('Could not embed image (cross-origin?):\n' + e.message);
+    return;
+  }
+  const js = `window._DAD_MAPS_DATA = window._DAD_MAPS_DATA || {};\n` +
+             `window._DAD_MAPS_DATA[${JSON.stringify(key)}] = ${JSON.stringify(data)};\n`;
+  const blob = new Blob([js], { type: 'application/javascript' });
+  const a = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = id + '-map.js';
+  a.click();
+}
+
+// ── Load JSON ─────────────────────────────────────────────────────
+document.getElementById('btn-load').addEventListener('click', () =>
+  document.getElementById('file-json').click());
+document.getElementById('file-json').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      snapshot();
+      S.objects = (data.objects || []).map(o => ({ ...o, id: S.nextId++ }));
+      if (data.carPixels) {
+        S.carPixels = data.carPixels;
+        document.getElementById('car-pixels').value = data.carPixels;
+      }
+      if (data.image && data.image !== S.imgSrc) {
+        S.imgSrc = data.image;
+        loadImage(data.image);
+      }
+      updateStatus(); updateInfoPanel(); redraw();
+    } catch (err) { alert('Could not parse JSON:\n' + err.message); }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+});
+
+// ── Status / info panel ───────────────────────────────────────────
+function updateStatus() {
+  const counts = { tree: 0, building: 0, road: 0 };
+  for (const o of S.objects) if (counts[o.type] !== undefined) counts[o.type]++;
+  document.getElementById('s-objects').textContent =
+    `${S.objects.length}  (🌳${counts.tree} 🏠${counts.building} 🛣${counts.road})`;
+}
+function updateInfoPanel() {
+  const cols = S.imgW ? Math.round(S.imgW / S.carPixels) : '—';
+  const rows = S.imgH ? Math.round(S.imgH / S.carPixels) : '—';
+  document.getElementById('ip-grid').textContent =
+    'Grid: ' + (S.showGrid ? 'on' : 'off');
+  document.getElementById('ip-size').textContent =
+    `Size: ${cols} × ${rows} cells  (${S.carPixels}px/cell)`;
+  document.getElementById('s-grid').textContent = `${cols}×${rows}`;
+  const sel = S.selected;
+  document.getElementById('ip-sel').textContent = sel
+    ? `Selected: ${sel.type} #${sel.id}` +
+      (sel.type === 'building' ? `  h=${sel.height != null ? sel.height : 2}` : '')
+    : 'Selected: —';
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+resizeCanvas();
+</script>
+</body>
+</html>

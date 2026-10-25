@@ -170,6 +170,9 @@ function draw(now) {
         const cv={t:'#4488ff',l:'#1144aa',r:'#2266cc',tx:'#fff'};
         const pulse2 = 0.80 + 0.20 * Math.sin(now * 0.007);
         drawSphere(it.col, it.row, cv, 1.0, 3.5 * BONUS_SIZE_MULT * pulse2, '🌀');
+      } else if(sp.type==='clock') {
+        const ck={t:'#ff6b35',l:'#993d18',r:'#cc5228',tx:'#fff'};
+        drawSphere(it.col, it.row, ck, 1.0, 3.0 * BONUS_SIZE_MULT * pulse, '⏱');
       }
     } else {
       const sn=it.sn;
@@ -286,6 +289,9 @@ function draw(now) {
   // Action cooldown display (H / J keys)
   drawActionCooldowns(now);
 
+  // Dad's mode mission status + arrow
+  if(typeof DAD !== 'undefined' && DAD.active) _dadDrawMissionHUD();
+
   // Vacuum range indicator
   if(G && G.player && !G.player.dead && G.vacuumUntil && now < G.vacuumUntil) {
     const rem = ((G.vacuumUntil - now) / CFG.VACUUM_DURATION_MS);
@@ -309,6 +315,11 @@ function draw(now) {
   // Burst recharge bar (bottom center)
   const burstFill = document.getElementById('burst-fill');
   const burstLabel = document.getElementById('burst-label');
+  const burstBar = document.getElementById('burst-bar');
+  const burstUnlocked = skillUnlocked('burst');   // Dad's mode: hidden until the BURST skill is earned
+  if(burstBar)   burstBar.style.display   = burstUnlocked ? '' : 'none';
+  if(burstLabel) burstLabel.style.display = burstUnlocked ? '' : 'none';
+  document.getElementById('joy-boost-btn')?.classList.toggle('hidden', !burstUnlocked);
   if(burstFill && G) {
     const elapsed = now - (G.burstAt || 0);
     const pct = Math.min(1, elapsed / CFG.BURST_RECHARGE_MS);

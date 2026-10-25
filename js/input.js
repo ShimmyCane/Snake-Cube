@@ -64,7 +64,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     triggerBurst();
   }
-  if((e.key === 'h' || e.key === 'H') && HOOK_ENABLED) {
+  if((e.key === 'h' || e.key === 'H') && playerHookOn()) {
     e.preventDefault();
     firePlayerHook();
   }
@@ -89,6 +89,7 @@ canvas.addEventListener('touchstart', e => {
 
 function triggerBurst() {
   if(!G || !G.running || !G.player || G.player.dead) return;
+  if(!skillUnlocked('burst')) return;
   const now2 = performance.now();
   if(now2 - (G.burstAt||0) < CFG.BURST_RECHARGE_MS) return; // still recharging
   G.burstAt = now2;
@@ -197,7 +198,7 @@ function setCtrlMode(mode) {
 
 function updateHookVisibility() {
   const btn = document.getElementById('joy-hook-btn');
-  if(btn) btn.classList.toggle('hidden', !HOOK_ENABLED);
+  if(btn) btn.classList.toggle('hidden', !playerHookOn());
 }
 
 function updateTailBulletVisibility() {

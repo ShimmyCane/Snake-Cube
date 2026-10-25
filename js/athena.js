@@ -60,14 +60,14 @@ function athenaLevelCFG(level, isEasy) {
   const sz = athenaLevelSize(level);
   if(level === 1) return {
     COLS: sz, ROWS: sz,
-    ROUND_SEC: 300, FOOD_MS: 8000, FOOD_FIELD_MAX: 80,
+    ROUND_SEC: isEasy ? 420 : 540, FOOD_MS: 8000, FOOD_FIELD_MAX: 80,   // easy 5 min · hard 7 min
     NUM_BOTS: Math.round((isEasy ? 24 : 40) * WORLD_DENSITY), BOT_MAX: Math.round((isEasy ? 40 : 64) * WORLD_DENSITY),
     DIFFICULTY: isEasy ? 0.8 : 1.2,
     BOT_CHASE_RANGE: isEasy ? 72 : 96,
   };
   return {
     COLS: sz, ROWS: sz,
-    ROUND_SEC: 300,
+    ROUND_SEC: isEasy ? 420 : 540,
     NUM_BOTS: Math.round((40 + level * 4) * WORLD_DENSITY),
     BOT_MAX:  Math.round((64 + level * 6) * WORLD_DENSITY),
     DIFFICULTY: 1.2 + level * 0.4,
@@ -513,7 +513,7 @@ function athenaDecoCollision(sn) {
         obj._lastHitTime = performance.now();
         obj.hp = (obj.hp || obj.maxHp || 3) - 1;
         if(obj.hp <= 0) {
-          const types = ['x2', 'boost', 'radar', 'invinc', 'vacuum'];
+          const types = ['x2', 'boost', 'radar', 'invinc', 'vacuum', 'clock'];
           const bonusType = types[Math.floor(Math.random() * types.length)];
           G.specials.push({ col: obj.col, row: obj.row, type: bonusType, expiresAt: performance.now() + 20000 });
           ATHENA.decorObjects.splice(oi, 1);

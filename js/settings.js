@@ -29,10 +29,13 @@
     <div class="sp-row"><label>Time</label><input class="sp-slider" id="roundtime-slider" type="range" min="1" max="20" value="5" step="1" style="--pct:22%"><span class="sp-val" id="roundtime-val">5m</span></div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Terrain</div>
     <div class="sp-row"><label>Z-Scale</label><input class="sp-slider" id="terrainz-slider" type="range" min="1" max="50" value="10" step="1" style="--pct:18%"><span class="sp-val" id="terrainz-val">1.0×</span></div>
+    <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Dad's Mode</div>
+    <div class="sp-row"><label>RoadBoost</label><input class="sp-slider" id="roadboost-slider" type="range" min="0" max="100" value="50" step="5" style="--pct:50%"><span class="sp-val" id="roadboost-val">50%</span></div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Player</div>
     <div class="sp-row"><label>Start Val</label><input class="sp-slider" id="startval-slider" type="range" min="1" max="11" value="1" step="1" style="--pct:0%"><span class="sp-val" id="startval-val">2</span></div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Debug</div>
-    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">Radar</label><input type="checkbox" id="radar-always-on" style="width:14px;height:14px;accent-color:#00f5c4;cursor:pointer"><span class="sp-val" id="radar-always-val" style="color:#555570">off</span></div>`;
+    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">Radar</label><input type="checkbox" id="radar-always-on" style="width:14px;height:14px;accent-color:#00f5c4;cursor:pointer"><span class="sp-val" id="radar-always-val" style="color:#555570">off</span></div>
+    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">MirrorMap</label><input type="checkbox" id="mirror-map" style="width:14px;height:14px;accent-color:#22aaff;cursor:pointer"><span class="sp-val" id="mirror-map-val" style="color:#555570">off</span></div>`;
   document.body.appendChild(el);
 })();
 
@@ -141,6 +144,7 @@ function applySnackSlider(v) {
   _snackSlider.value = v;
 }
 _snackSlider.addEventListener('input', () => applySnackSlider(parseInt(_snackSlider.value)));
+applySnackSlider(CFG.FOOD_FIELD_MAX); // startup: read CFG, don't overwrite it
 
 // ── New dev sliders ──
 
@@ -171,47 +175,55 @@ _tickSlider.addEventListener('input', () => {
 // Bot speed ratio
 const _botspeedSlider = document.getElementById('botspeed-slider');
 const _botspeedVal    = document.getElementById('botspeed-val');
-_botspeedSlider.addEventListener('input', () => {
-  const v = parseInt(_botspeedSlider.value);
+function applyBotSpeedSlider(v) {
   CFG.BOT_SPEED = v / 100;
   _botspeedVal.textContent = v + '%';
   const pct = Math.round((v-10)/(200-10)*100);
   _botspeedSlider.style.setProperty('--pct', pct + '%');
-});
+  _botspeedSlider.value = v;
+}
+_botspeedSlider.addEventListener('input', () => applyBotSpeedSlider(parseInt(_botspeedSlider.value)));
+applyBotSpeedSlider(Math.round(CFG.BOT_SPEED * 100)); // startup: read CFG, don't overwrite it
 
 // Bot max count
 const _botmaxSlider = document.getElementById('botmax-slider');
 const _botmaxVal    = document.getElementById('botmax-val');
-_botmaxSlider.addEventListener('input', () => {
-  const v = parseInt(_botmaxSlider.value);
+function applyBotMaxSlider(v) {
   CFG.BOT_MAX = v;
   _botmaxVal.textContent = v;
   const pct = Math.round(v/120*100);
   _botmaxSlider.style.setProperty('--pct', pct + '%');
+  _botmaxSlider.value = v;
   if(G && G.running) spawnBotWave();
-});
+}
+_botmaxSlider.addEventListener('input', () => applyBotMaxSlider(parseInt(_botmaxSlider.value)));
+applyBotMaxSlider(CFG.BOT_MAX); // startup: read CFG, don't overwrite it
 
 // Bot range
 const _rangeSlider = document.getElementById('range-slider');
 const _rangeVal    = document.getElementById('range-val');
-_rangeSlider.addEventListener('input', () => {
-  const v = parseInt(_rangeSlider.value);
+function applyRangeSlider(v) {
   CFG.BOT_RANGE = v;
   _rangeVal.textContent = v;
   const pct = Math.round((v-8)/(80-8)*100);
   _rangeSlider.style.setProperty('--pct', pct + '%');
-});
+  _rangeSlider.value = v;
+}
+_rangeSlider.addEventListener('input', () => applyRangeSlider(parseInt(_rangeSlider.value)));
+applyRangeSlider(CFG.BOT_RANGE); // startup: read CFG, don't overwrite it
 
 // Chase range
 const _chaseSlider = document.getElementById('chase-slider');
 const _chaseVal    = document.getElementById('chase-val');
-_chaseSlider.addEventListener('input', () => {
-  const v = parseInt(_chaseSlider.value);
+function applyChaseSlider(v) {
   CFG.BOT_CHASE_RANGE = v;
   _chaseVal.textContent = v;
   const pct = Math.round((v-10)/(120-10)*100);
   _chaseSlider.style.setProperty('--pct', pct + '%');
-});
+  _chaseSlider.value = v;
+}
+_chaseSlider.addEventListener('input', () => applyChaseSlider(parseInt(_chaseSlider.value)));
+applyChaseSlider(CFG.BOT_CHASE_RANGE); // startup: read CFG, don't overwrite it
 
 // Difficulty multiplier
 const _diffSlider = document.getElementById('diff-slider');
@@ -239,13 +251,27 @@ _roundtimeSlider.addEventListener('input', () => {
 // Terrain Z scale slider
 const _terrainzSlider = document.getElementById('terrainz-slider');
 const _terrainzVal    = document.getElementById('terrainz-val');
-_terrainzSlider.addEventListener('input', () => {
-  const v = parseInt(_terrainzSlider.value);
+function applyTerrainZSlider(v) {
   CFG.TERRAIN_Z_SCALE = v / 10;
   _terrainzVal.textContent = (v/10).toFixed(1) + '×';
   const pct = Math.round((v-1)/(50-1)*100);
   _terrainzSlider.style.setProperty('--pct', pct + '%');
-});
+  _terrainzSlider.value = v;
+}
+_terrainzSlider.addEventListener('input', () => applyTerrainZSlider(parseInt(_terrainzSlider.value)));
+applyTerrainZSlider(Math.round(CFG.TERRAIN_Z_SCALE * 10)); // startup: read CFG, don't overwrite it
+
+// Dad's mode road boost (percent speed bonus on roads)
+const _roadboostSlider = document.getElementById('roadboost-slider');
+const _roadboostVal    = document.getElementById('roadboost-val');
+function applyRoadBoostSlider(v) {
+  CFG_DAD.ROAD_BOOST = v / 100;
+  _roadboostVal.textContent = v + '%';
+  _roadboostSlider.style.setProperty('--pct', v + '%');
+  _roadboostSlider.value = v;
+}
+_roadboostSlider.addEventListener('input', () => applyRoadBoostSlider(parseInt(_roadboostSlider.value)));
+applyRoadBoostSlider(Math.round(CFG_DAD.ROAD_BOOST * 100)); // startup: read CFG, don't overwrite it
 
 // Radar always-on toggle
 const _radarAlwaysChk = document.getElementById('radar-always-on');
@@ -255,6 +281,19 @@ _radarAlwaysChk.addEventListener('change', () => {
   _radarAlwaysVal.textContent = RADAR_ALWAYS_ON ? 'on' : 'off';
   _radarAlwaysVal.style.color = RADAR_ALWAYS_ON ? '#00f5c4' : '#555570';
 });
+
+// Mirror map test (Dad's mode) — flips the satellite texture to check a left-handed map
+const _mirrorChk = document.getElementById('mirror-map');
+const _mirrorVal = document.getElementById('mirror-map-val');
+function applyMirrorToggle(on) {
+  _mirrorChk.checked = on;
+  _mirrorVal.textContent = on ? 'on' : 'off';
+  _mirrorVal.style.color = on ? '#22aaff' : '#555570';
+  if(typeof DAD !== 'undefined') DAD.setMirror(on);
+  else CFG_DAD.MIRROR_MAP = on;
+}
+_mirrorChk.addEventListener('change', () => applyMirrorToggle(_mirrorChk.checked));
+applyMirrorToggle(CFG_DAD.MIRROR_MAP); // startup: read CFG, don't overwrite it
 
 // ── Start Val slider — exponent 1–11 maps to 2^exp (2 … 2048) ──
 const _startvalSlider = document.getElementById('startval-slider');

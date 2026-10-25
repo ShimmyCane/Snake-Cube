@@ -65,13 +65,6 @@
       </div>
       <p id="mp-status" style="font-size:0.65rem;color:#555570;min-height:1.1em;margin-top:4px;text-align:center"></p>
     </div>
-    <audio id="a1" preload="auto"></audio>
-    <audio id="a2" preload="auto"></audio>
-    <div class="audio-controls">
-      <button id="startBtn">Start 30-Minute Audio Loop</button>
-      <h2 id="timerDisplay">30:00</h2>
-      <p id="trackInfo">Stopped</p>
-    </div>
     <div id="mp-screen-connecting" class="hidden">
       <h2>CONNECTING</h2>
       <p id="mp-status-conn" style="color:#555570;text-align:center">Joining game...</p>

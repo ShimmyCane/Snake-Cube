@@ -262,6 +262,17 @@ if (document.readyState === 'complete') {
 <p>The diagnostic panel's MISSING GLOBALS section is the fastest way to spot this: if a file loaded (FILES = ✓) but its key global is missing (GLOBALS = ✗), the cause is either a runtime error or a redeclaration SyntaxError early in the file.</p>
 <p class="note">Note: <code>node --check file.js</code> and <code>new Function(src)</code> both pass for this class of error because they only see one file at a time. The error only surfaces when both files are in the same scope (i.e., in the browser).</p>
 
+<h2>22. SLIDERS MUST INIT FROM CFG — THE PANEL CAN LIE ABOUT THE GAME</h2>
+<p>A dev-panel slider's HTML <code>value</code> and label are hardcoded. If nothing calls the apply function at startup, the slider shows that hardcoded number while the game runs on whatever <code>CFG</code> holds. Nothing errors, so it is easy to miss.</p>
+<div class="warn">
+  <span class="bad">BUG CAUGHT:</span> Range showed 28 and Chase showed 48, but <code>CFG.BOT_RANGE</code> and <code>CFG.BOT_CHASE_RANGE</code> were 56 and 96. BotSpd was labelled "30%" at a slider position of 50. Terrain Z showed 1.0× while the game ran at 5.0×.
+</div>
+<p><span class="good">FIX:</span> Put the body of each handler in a named <code>applyXSlider(v)</code> function, and call it once at startup with the value read from CFG:</p>
+<pre>function applyRangeSlider(v) { CFG.BOT_RANGE = v; /* label, --pct, slider.value */ }
+_rangeSlider.addEventListener('input', () =&gt; applyRangeSlider(parseInt(_rangeSlider.value)));
+applyRangeSlider(CFG.BOT_RANGE); // startup: read CFG, don't overwrite it</pre>
+<p><span class="good">CHECK:</span> Load the page in a browser and compare each <code>#x-slider</code>'s <code>.value</code> with the CFG key it drives. Scale factors matter: <code>CFG.BOT_SPEED * 100</code> needs <code>Math.round</code>.</p>
+
 <h2>16. OVERLAY z-index BLOCKS HUD BUTTONS</h2>
 <p>Fullscreen overlays use <code>position:fixed; inset:0; z-index:100</code>. If <code>#hud</code> has no <code>z-index</code> it sits in the default stacking context (z-index: auto ≈ 0) — <em>below</em> the overlay — even though it is visually above it due to opacity and layout order. Clicks on HUD buttons pass through to the overlay behind.</p>
 <div class="warn">

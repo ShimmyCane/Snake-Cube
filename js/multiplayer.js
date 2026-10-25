@@ -24,15 +24,15 @@
 // ── MP overlay DOM — injected here so index.html stays slim ──
 (function() {
   const el = document.createElement('div');
-  el.id = 'mp-overlay'; el.className = 'hidden';
+  el.id = 'mp-overlay'; el.className = 'hidden masonry';
   el.innerHTML = `
     <div id="mp-screen-main">
       <h2 style="margin-bottom:8px;text-align:center">FELIX'S<br>SNAKE CUBES</h2>
-      <div style="width:100%;max-width:300px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="ctrl-pill" id="menu-felix" style="padding:14px 4px;font-size:0.72rem">🐍 FELIX</button>
-        <button class="ctrl-pill" id="menu-athena" style="padding:14px 4px;font-size:0.72rem;border-color:#bf5fff;color:#bf5fff">🦉 ATHENA</button>
-        <button class="ctrl-pill" id="menu-dad" style="padding:14px 4px;font-size:0.72rem;border-color:#22aaff;color:#22aaff">🏘️ DAD</button>
-        <button class="ctrl-pill" id="menu-others" style="padding:14px 4px;font-size:0.72rem">👥 OTHERS</button>
+      <div class="stone-wall">
+        <button class="stone s1" id="menu-felix" style="--c:#00f5c4">🐍 FELIX</button>
+        <button class="stone s2" id="menu-athena" style="--c:#bf5fff">🦉 ATHENA</button>
+        <button class="stone s3" id="menu-dad" style="--c:#22aaff">🏘️ DAD</button>
+        <button class="stone s4" id="menu-others" style="--c:#ff6b35">👥 OTHERS</button>
       </div>
       <div id="menu-opts" style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
       <div style="width:100%;max-width:300px;margin-top:6px">
@@ -42,7 +42,9 @@
           <button class="ctrl-pill" id="ctrl-joy-btn">🕹️ JOYSTICK<br><span style="font-size:0.5rem;opacity:0.6">pad + hook</span></button>
         </div>
       </div>
-      <button class="mp-btn solid" id="menu-start" style="width:100%;max-width:300px;margin-top:12px;padding:12px">START</button>
+      <div class="stone-wall" style="margin-top:12px;grid-template-columns:1fr">
+        <button class="stone s2" id="menu-start" style="--c:#ffb02e">START</button>
+      </div>
     </div>
     <div id="mp-screen-others" class="hidden">
       <h2 style="margin-bottom:8px;text-align:center">OTHERS</h2>

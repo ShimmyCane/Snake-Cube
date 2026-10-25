@@ -9,7 +9,7 @@
 // ════════════════════════════════════════
 const CFG_AUDIO = {
   FOLDER:       'music/',
-  PLAYLIST:     ['felix_piano_1.mp4', 'ying_piano_1.mp4', 'athena_piano_1.mp4', 'athena_piano_2.mp4', 'athena_piano_3.mp4'],
+  PLAYLIST:     ['felix_piano_1.mp4', 'ying_piano_1.mp4', 'athena_piano_1.mp4', 'athena_piano_2.mp4'],
   VOLUME:       0.55,
   AUTO_SHUFFLE: true,
 };
@@ -32,7 +32,7 @@ const CFG = {
   BOT_SPAWN_MS: Math.round(15000 / WORLD_DENSITY),
   DIFFICULTY: 1.0,
   MERGE_EVERY: 4,
-  ROUND_SEC: 180,           // 3 min default; harder modes and other modes add 2 min (see DIFF in multiplayer.js)
+  ROUND_SEC: 300,           // 5 min default; harder modes and other modes add 2 min (see DIFF in multiplayer.js)
   BOT_RANGE: 56,            // bigger world → longer visible range
   BOT_CHASE_RANGE: 96,       // how far bots will chase before giving up
   BOT_FOOD_SCAN_MULT: 2.0,  // bots scan for food/specials within this × BOT_CHASE_RANGE (1–3)
@@ -52,8 +52,8 @@ const CFG = {
   BURST_DIST: 3.0,
   BURST_RECHARGE_MS: 5000,
   // ── Multiplayer ──
-  MP_COOP_ROUND_SEC: 300,          // 5 min co-op
-  MP_COMP_ROUND_SEC: 300,          // 5 min competitive
+  MP_COOP_ROUND_SEC: 420,          // 7 min co-op
+  MP_COMP_ROUND_SEC: 420,          // 7 min competitive
   MP_COMP_SPEED_ADV: 0.02,         // 2% speed advantage per level gap (competitive)
   MP_COMP_SPEED_ADV_MAX: 5,        // max level gap counted (max 10% bonus)
   MP_COOP_LARGE_BOT_VAL: 64,       // bot headVal threshold for co-op "big kill" bonus
@@ -71,6 +71,9 @@ const CFG = {
   VACUUM_DURATION_MS: 15000,
   VACUUM_SPEED: 1.1,
   VACUUM_INTERVAL_MS: 3000,
+  // ── Clock bonus tile: adds time to the round ──
+  CLOCK_INTERVAL_MS: 40000,
+  CLOCK_BONUS_SEC: 30,
   // ── Terrain ──
   TERRAIN_Z_SCALE: 5.0,            // Athena rolling hills vertical scale (dev slider)
   // ── Player start value ──
@@ -299,5 +302,12 @@ if (/[?&]mirror=1\b/.test(location.search)) CFG_DAD.MIRROR_MAP = true;
 function skillUnlocked(name) {
   if (typeof DAD === 'undefined' || !DAD.active) return true;
   return !!DAD.skills[name];
+}
+
+// Player hook: in Dad's mode it follows the HOOK skill; elsewhere it follows HOOK_ENABLED.
+// HOOK_ENABLED alone still controls bot hooks, so Dad's bots keep their own weapons.
+function playerHookOn() {
+  if (typeof DAD !== 'undefined' && DAD.active) return !!DAD.skills.hook;
+  return HOOK_ENABLED;
 }
 const DAD_BG = { bg: '#0a0c0f', grid: '#0a0c0f', edge: '#000000' };

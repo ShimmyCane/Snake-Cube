@@ -49,7 +49,7 @@
     <tr><td>PATCH (x.x.1)</td><td>Bug fix, CFG tweak, slider adjustment, visual polish</td></tr>
   </table>
   <br>
-  <p class="note">Current: v3.2.0 (Dad's mode active) — next patch v3.2.1 for bug fixes; next minor v3.3.0 for new features</p>
+  <p class="note">Current: v4.0.0 — next patch v4.0.1 for bug fixes; next minor v4.1.0 for new features. Release notes: <a href="CHANGELOG.md">CHANGELOG.md</a></p>
 </div>
 
 <!-- ─────────────────────────────────── -->
@@ -126,6 +126,16 @@ applyMyValSlider(5); // startup default</pre>
 <h2 id="todo">TO DO</h2>
 <p class="note">Last rebuilt 2026-10-25. The previous list is archived in <a href="todo-archive.html">todo-archive.html</a>. Each item below was checked against the code on that date.</p>
 
+<h3>Done in v4.0.0 (2026-10-25, see CHANGELOG.md)</h3>
+<ul>
+  <li class="done">✅ Bots keep their own weapons in Dad's mode. The player's hook follows the HOOK skill via <code>playerHookOn()</code>; <code>HOOK_ENABLED</code> is only for bots now.</li>
+  <li class="done">✅ Missions continue after all skills: each mission drops a random bonus tile on its target.</li>
+  <li class="done">✅ Round times 5 / 7 / 9 min (Felix). Other modes +2 min. New ⏱ clock bonus tile adds 30 s.</li>
+  <li class="done">✅ Trees are decided not to block the snake; the collision item is dropped.</li>
+  <li class="done">✅ <code>BOT_START_VAL</code> checked: nothing references it. Item dropped.</li>
+  <li class="done">✅ <code>athena_piano_3.mp4</code> removed from the playlist. <a href="MUSIC.md">MUSIC.md</a> tracks which pieces are used.</li>
+  <li class="done">✅ Version bumped to v4.0.0 in <code>index.html</code>, <code>config.js</code>, <code>dad.js</code> and this file.</li>
+</ul>
 <h3>Done in round 2 (2026-10-25, see convo.md)</h3>
 <ul>
   <li class="done">✅ Dad's map mirror fixed: the UV flip is removed (<code>dad.js</code> <code>_dadBuildMesh</code>). Test toggle: <code>CFG_DAD.MIRROR_MAP</code> via the dev panel or <code>?mirror=1</code>. lessons-learned #23.</li>
@@ -146,14 +156,10 @@ applyMyValSlider(5); // startup default</pre>
 <h3>Open</h3>
 <ul>
   <li class="todo">⚠️ MP overlay not showing (noted on v3.1.1). Not reproduced in this pass. Check the start screen → multiplayer flow in a browser, then close or re-file this item.</li>
-  <li class="todo">Dad's mode — trees do not block the snake. They are never rasterised into <code>DAD._collGrid</code>. Decide whether they should block (add them in <code>_dadBuildCollGrid()</code>) or drop this item.</li>
   <li class="todo">Dad's mode — trees draw after all buildings in <code>DAD.drawBg()</code>, so a tree behind a building shows on top. Fix: sort trees and building quads together in one painter's pass.</li>
   <li class="todo">Dad's mode — road boost has no visual feedback. Add a HUD indicator or speed-line effect while <code>DAD._isOnRoad()</code> is true for the player.</li>
   <li class="todo">Confirm the mirror fix on a real phone: buildings should line up with the satellite image in both Walteria and Dalian. Also check MirrorMap is off by default.</li>
-  <li class="todo">Dad's mode: bots share <code>HOOK_ENABLED</code>, so they start hooking once the player earns HOOK. Decide whether bots should keep their own weapons.</li>
-  <li class="todo">Consider a <code>BOT_START_VAL</code> separate from <code>PLAYER_START_VAL</code>. Nothing references it yet, so decide whether it is needed.</li>
-  <li class="todo"><code>athena_piano_3.mp4</code> is in <code>CFG_AUDIO.PLAYLIST</code> but not in <code>music/</code>. <code>music.js</code> skips it on error, so it is harmless, but either add the file or remove the entry.</li>
-  <li class="todo">Version strings disagree. <code>index.html</code>'s title says v3.2.0 and its header comment says v3.3.1. The <code>config.js</code> header and the load-error panel say v3.1.1. This file says current v3.2.0. Pick one and update them together.</li>
+  <li class="done">Version strings: in-game and process strings now read v4.0.0. Older mentions remain in archived notes.</li>
   <li class="todo">This file links <code>css/process.css</code>, which is not in the repo, so the page renders unstyled. The workflow also asks for <code>snake2048_vX.Y.Z.html</code> snapshots, none of which are tracked. Decide whether the snapshot step still applies.</li>
   <li class="todo">Stale Dad's mode docs. <code>schematic.html</code> still marks Dad's mode as PLANNED and describes a Mapbox/Three.js renderer that was not built. The "Add a new Dad's mode map" row says to edit <code>CFG_DAD.MAPS</code> in dad.js, but <code>CFG_DAD</code> lives in <code>config.js</code> and has no <code>MAPS</code> key, so the game falls back to walteria.</li>
 </ul>

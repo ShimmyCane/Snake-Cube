@@ -170,9 +170,9 @@ function savePlayerName(n) {
 // ── Difficulty presets — keys match CFG property names, merged via Object.assign ──
 // ROUND_SEC:0 = unlimited play (no countdown, never ends by time)
 const DIFF = {
-  easy:   { ROUND_SEC:180, NUM_BOTS: Math.round(16 * WORLD_DENSITY), BOT_MAX: Math.round(26 * WORLD_DENSITY),  DIFFICULTY:0.9,  BOT_CHASE_RANGE:72  }, // 3 min
-  hard:   { ROUND_SEC:300, NUM_BOTS: Math.round(32 * WORLD_DENSITY), BOT_MAX: Math.round(60 * WORLD_DENSITY),  DIFFICULTY:1.8,  BOT_CHASE_RANGE:104 }, // 5 min
-  insane: { ROUND_SEC:420, NUM_BOTS: Math.round(44 * WORLD_DENSITY), BOT_MAX: Math.round(88 * WORLD_DENSITY),  DIFFICULTY:3.0,  BOT_CHASE_RANGE:144 }, // 7 min
+  easy:   { ROUND_SEC:300, NUM_BOTS: Math.round(16 * WORLD_DENSITY), BOT_MAX: Math.round(26 * WORLD_DENSITY),  DIFFICULTY:0.9,  BOT_CHASE_RANGE:72  }, // 5 min
+  hard:   { ROUND_SEC:420, NUM_BOTS: Math.round(32 * WORLD_DENSITY), BOT_MAX: Math.round(60 * WORLD_DENSITY),  DIFFICULTY:1.8,  BOT_CHASE_RANGE:104 }, // 7 min
+  insane: { ROUND_SEC:540, NUM_BOTS: Math.round(44 * WORLD_DENSITY), BOT_MAX: Math.round(88 * WORLD_DENSITY),  DIFFICULTY:3.0,  BOT_CHASE_RANGE:144 }, // 9 min
 };
 let _diffPreset = 'hard';
 
@@ -226,12 +226,12 @@ function initMPOverlay() {
       box.appendChild(row);
     };
     if (MENU.mode === 'felix') {
-      pills('DIFFICULTY', [['easy', 'EASY · 3 min'], ['hard', 'HARD · 5 min'], ['insane', 'INSANE · 7 min']], MENU.felix, v => { MENU.felix = v; });
+      pills('DIFFICULTY', [['easy', 'EASY · 5 min'], ['hard', 'HARD · 7 min'], ['insane', 'INSANE · 9 min']], MENU.felix, v => { MENU.felix = v; });
     } else if (MENU.mode === 'athena') {
-      pills('DIFFICULTY', [['easy', 'EASY · 5 min'], ['hard', 'HARD · 7 min']], MENU.athena, v => { MENU.athena = v; });
+      pills('DIFFICULTY', [['easy', 'EASY · 7 min'], ['hard', 'HARD · 9 min']], MENU.athena, v => { MENU.athena = v; });
     } else if (MENU.mode === 'dad') {
       pills('MAP', dadMaps.map(p => [p, dadLabel(p)]), MENU.map, v => { MENU.map = v; });
-      pills('DIFFICULTY', [['normal', 'NORMAL · 5 min'], ['hard', 'HARD · 7 min']], MENU.dad, v => { MENU.dad = v; });
+      pills('DIFFICULTY', [['normal', 'NORMAL · 7 min'], ['hard', 'HARD · 9 min']], MENU.dad, v => { MENU.dad = v; });
     }
   }
   async function startSelected() {

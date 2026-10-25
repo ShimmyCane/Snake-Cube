@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
 //  DAD'S MODE — satellite image ground (WebGL) + map system
-//  v3.2.0  •  Loads after main.js  •  No external dependencies
+//  v4.0.0  •  Loads after main.js  •  No external dependencies
 //
 //  Public API:
 //    loadDadMap(jsonPath) → Promise  — fetch JSON + image, resize world
@@ -679,6 +679,7 @@ const DAD_SKILL_LABEL = { hook: 'HOOK', tail: 'TAIL BULLET', burst: 'BURST', vac
 
 const CFG_DAD_MISSION = {
   REACH_RADIUS:  2.5,     // cells — how close the head must get to the target
+  BONUS_MS:      30000,   // how long a bonus tile from a mission reward stays on the map
   PAUSE_MS:      60000,   // pause between missions (after success or timeout)
   MIN_PATH:      40,      // target is at least this many steps away by road/open ground…
   MAX_PATH:      300,     // …and at most this many
@@ -695,7 +696,6 @@ function _dadResetProgress() {
   DAD.missionNum = 0;
   DAD._pauseLeftMs = 0;   // first mission starts straight away
   DAD._lastTickAt = 0;
-  HOOK_ENABLED = false;
   TAILBULLET_ENABLED = false;
   updateHookVisibility();
   updateTailBulletVisibility();
@@ -705,7 +705,6 @@ function _dadUnlockNextSkill() {
   const next = DAD_SKILL_ORDER.find(s => !DAD.skills[s]);
   if (!next) return;
   DAD.skills[next] = true;
-  if (next === 'hook') HOOK_ENABLED = true;
   if (next === 'tail') TAILBULLET_ENABLED = true;
   updateHookVisibility();
   updateTailBulletVisibility();
@@ -755,7 +754,6 @@ function _dadTickMissions() {
   const dt = DAD._lastTickAt ? Math.min(100, now - DAD._lastTickAt) : 0;
   DAD._lastTickAt = now;
   if (!G || !G.running || G.paused || !G.player || G.player.dead) return;
-  if (_dadAllUnlocked()) { DAD.mission = null; return; }
 
   if (!DAD.mission) {
     DAD._pauseLeftMs -= dt;
@@ -770,7 +768,7 @@ function _dadTickMissions() {
   m.elapsedMs += dt;
   const h = G.player.segs[0];
   if (Math.hypot(h.col - m.col, h.row - m.row) <= CFG_DAD_MISSION.REACH_RADIUS) {
-    _dadUnlockNextSkill();
+    _dadReward(m);
     DAD.mission = null;
     DAD._pauseLeftMs = CFG_DAD_MISSION.PAUSE_MS;
   } else if (m.elapsedMs >= m.limitMs) {
@@ -778,6 +776,16 @@ function _dadTickMissions() {
     DAD.mission = null;
     DAD._pauseLeftMs = CFG_DAD_MISSION.PAUSE_MS;
   }
+}
+
+// Reward for reaching a target: the next locked skill. Once every skill is
+// earned, the mission drops a random bonus tile on the target instead.
+const DAD_BONUS_TYPES = ['x2', 'boost', 'radar', 'invinc', 'vacuum', 'clock'];
+function _dadReward(m) {
+  if (!_dadAllUnlocked()) { _dadUnlockNextSkill(); return; }
+  const type = DAD_BONUS_TYPES[Math.floor(Math.random() * DAD_BONUS_TYPES.length)];
+  spawnBonusAt(m.col, m.row, type, CFG_DAD_MISSION.BONUS_MS);
+  showFlash('🎁 BONUS TILE DROPPED!', '#22aaff');
 }
 
 // Arrow from the head toward the target. Its direction comes from projecting
@@ -826,7 +834,6 @@ function _dadDrawMissionHUD() {
   };
   let line;
   if (m) line = `MISSION ${DAD.missionNum} · GO TO ${m.name.toUpperCase()} · ${fmt(m.limitMs - m.elapsedMs)}`;
-  else if (_dadAllUnlocked()) line = 'ALL SKILLS UNLOCKED';
   else line = `NEXT MISSION IN ${fmt(DAD._pauseLeftMs)}`;
   const unlocked = DAD_SKILL_ORDER.filter(s => DAD.skills[s]).map(s => DAD_SKILL_LABEL[s]);
 
@@ -837,7 +844,9 @@ function _dadDrawMissionHUD() {
   ctx.fillText(line, W / 2, 96);
   ctx.font = '10px "Courier New", monospace';
   ctx.fillStyle = 'rgba(200,200,216,0.75)';
-  ctx.fillText('SKILLS: ' + (unlocked.join(' · ') || 'NONE'), W / 2, 112);
+  const skillLine = _dadAllUnlocked() ? 'ALL SKILLS · MISSIONS PAY BONUS TILES'
+                                      : 'SKILLS: ' + (unlocked.join(' · ') || 'NONE');
+  ctx.fillText(skillLine, W / 2, 112);
   ctx.restore();
 
   if (m) _dadDrawArrow(m);
@@ -850,8 +859,9 @@ function _dadDrawMissionHUD() {
 async function launchDadMode(path, hard) {
   await loadDadMap(path);
   EXPERT_MODE = !!hard;
+  HOOK_ENABLED = !!hard;              // bot weapons follow difficulty; the player's HOOK comes from missions
   if (hard) Object.assign(CFG_EXPERT, CFG_DAD_HARD);
-  CFG.ROUND_SEC = hard ? 420 : 300;   // 7 min hard, 5 min normal (3 min base + 2 per step)
+  CFG.ROUND_SEC = hard ? 540 : 420;   // 9 min hard, 7 min normal (5 min base + 2 per step)
   const ss = document.getElementById('s-start');
   if (ss) ss.classList.add('hidden');
   const mp = document.getElementById('mp-overlay');

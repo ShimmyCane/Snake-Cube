@@ -139,3 +139,15 @@ Answers you gave: head size = typical; the map flip is the texture only (3D obje
 - Missions stop once all four skills are earned. Is that right, or should missions keep going with no reward?
 - Versus is now 5 min. Keep 5 or go back to 8?
 - The mission time assumes about 1 cell per tick. If missions feel too tight or too loose, change `CELLS_PER_TICK`.
+
+---
+
+## Round 3 — your answers (v4.0.0)
+
+1. **Bots keep their own weapons.** Done: the player's hook follows the HOOK skill (`playerHookOn()`). `HOOK_ENABLED` now only controls bots.
+2. **Missions carry on after all skills, rewarding bonus tiles.** Done: each mission drops a random bonus tile (x2, speed, radar, invincible, vacuum, clock) on its target.
+3. **Round times 5 / 7 / 9 min, plus a time-extension tile.** Done: Felix 5/7/9. Other modes add 2 min. The new ⏱ clock tile adds 30 s.
+4. **Trees don't block snakes.** Done: the collision item is dropped.
+5. **`BOT_START_VAL`.** Checked: nothing references it. Dropped.
+6. **Remove `athena_piano_3`, add a music tracker.** Done: entry removed. `MUSIC.md` lists the tracks in use.
+7. **v4 with a changelog.** Done: `CHANGELOG.md` covers v4.0.0 and reconstructs history from the lessons-learned, process, schematic, and code notes. The repo's git history starts at a single commit, so older entries are reconstructed.

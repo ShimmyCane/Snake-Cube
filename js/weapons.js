@@ -30,7 +30,7 @@ function fireHook(sn) {
 }
 
 function firePlayerHook() {
-  if(!HOOK_ENABLED) return;
+  if(!playerHookOn()) return;
   if(!G || !G.running || !G.player || G.player.dead) return;
   if(MP.enabled && !MP.isHost) {
     // Guest: ask the host to fire the hook in the authoritative simulation
@@ -152,7 +152,7 @@ function drawHooks(now) {
 function drawActionCooldowns(now) {
   if(!G || !G.running || !G.player || G.player.dead) return;
   const items = [];
-  if(HOOK_ENABLED) {
+  if(playerHookOn()) {
     const hookUntil = G.player.hookCooldownUntil || 0;
     const hookRem = Math.max(0, hookUntil - now);
     if(hookRem > 0) items.push({ label: `H ${(hookRem/1000).toFixed(1)}s`, color: '#ff6b35' });

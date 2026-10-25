@@ -64,7 +64,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     triggerBurst();
   }
-  if((e.key === 'h' || e.key === 'H') && HOOK_ENABLED) {
+  if((e.key === 'h' || e.key === 'H') && playerHookOn()) {
     e.preventDefault();
     firePlayerHook();
   }
@@ -198,7 +198,7 @@ function setCtrlMode(mode) {
 
 function updateHookVisibility() {
   const btn = document.getElementById('joy-hook-btn');
-  if(btn) btn.classList.toggle('hidden', !HOOK_ENABLED);
+  if(btn) btn.classList.toggle('hidden', !playerHookOn());
 }
 
 function updateTailBulletVisibility() {

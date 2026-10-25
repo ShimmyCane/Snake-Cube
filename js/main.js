@@ -170,6 +170,9 @@ function draw(now) {
         const cv={t:'#4488ff',l:'#1144aa',r:'#2266cc',tx:'#fff'};
         const pulse2 = 0.80 + 0.20 * Math.sin(now * 0.007);
         drawSphere(it.col, it.row, cv, 1.0, 3.5 * BONUS_SIZE_MULT * pulse2, '🌀');
+      } else if(sp.type==='clock') {
+        const ck={t:'#ff6b35',l:'#993d18',r:'#cc5228',tx:'#fff'};
+        drawSphere(it.col, it.row, ck, 1.0, 3.0 * BONUS_SIZE_MULT * pulse, '⏱');
       }
     } else {
       const sn=it.sn;

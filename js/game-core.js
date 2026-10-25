@@ -9,7 +9,7 @@
 let G = {}; // whole game state lives here
 
 // ── Timer handles — live outside G so restart can't orphan them ──
-let _TID = { pt:0, bt:0, hbt:0, gs:0, ft:0, st:0, x2:0, bst:0, rdr:0, inv:0, ct:0, wd:0, vac:0 };
+let _TID = { pt:0, bt:0, hbt:0, gs:0, ft:0, st:0, x2:0, bst:0, rdr:0, inv:0, ct:0, wd:0, vac:0, clk:0 };
 
 function clearTimers() {
   Object.keys(_TID).forEach(k => { clearTimeout(_TID[k]); clearInterval(_TID[k]); _TID[k]=0; });
@@ -187,6 +187,7 @@ function initGame() {
   _TID.rdr = setInterval(spawnRadar,    CFG.RADAR_INTERVAL_MS);
   _TID.inv = setInterval(spawnInvinc,   CFG.INVINC_INTERVAL_MS);
   _TID.vac = setInterval(spawnVacuum,   CFG.VACUUM_INTERVAL_MS);
+  _TID.clk = setInterval(spawnClock,    CFG.CLOCK_INTERVAL_MS);
   _TID.ct  = setInterval(() => {
     if(G.paused) return;
     G.timeLeft--;
@@ -329,6 +330,16 @@ function spawnVacuum() {
   // G.specials = (G.specials||[]).filter(s=>s.type!=='vacuum');
   const pos = randomFreeCell();
   if(pos) G.specials.push({col:pos.col, row:pos.row, type:'vacuum', expiresAt: performance.now()+20000});
+}
+function spawnClock() {
+  if(!G || !G.running) return;
+  G.specials = (G.specials||[]).filter(s=>s.type!=='clock');
+  const pos = randomFreeCell();
+  if(pos) G.specials.push({col:pos.col, row:pos.row, type:'clock', expiresAt: performance.now()+20000});
+}
+// Used by Dad's mission rewards: drop a bonus tile at a given cell
+function spawnBonusAt(col, row, type, ms) {
+  G.specials.push({col, row, type, expiresAt: performance.now()+ms});
 }
 function randomFreeCell() {
   // Fast: random probe up to 30 attempts, avoid known occupied cells
@@ -697,6 +708,9 @@ function playerTick() {
         G.vacuumUntil = now + CFG.VACUUM_DURATION_MS;
         G.boostUntil = now + CFG.VACUUM_DURATION_MS; // speed bonus
         showFlash('🌀 VACUUM ACTIVE!', '#4488ff');
+      } else if(sp.type === 'clock') {
+        G.timeLeft += CFG.CLOCK_BONUS_SEC;
+        showFlash('⏱ +' + CFG.CLOCK_BONUS_SEC + 's', '#ff6b35');
       }
     }
   }

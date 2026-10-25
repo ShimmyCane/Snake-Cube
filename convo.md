@@ -9,7 +9,7 @@ Status key: **open** = waiting on answers · **agreed** = decided, ready to buil
 
 **Request:** Once the player's snake is 8× or more larger than the board, the game gets boring. Give other snakes (and snacks) faster growth so the player keeps getting fed, which makes reaching a higher score more fun. Options mentioned: raise snack weight, or lower spawn rate and raise spawn difficulty.
 
-**Status:** open
+**Status:** built (round 2) — see decisions below
 
 **Questions**
 - "8× larger than the board" — do you mean the snake's *length* compared to the board size, or its *head value* (e.g. 2048-style value) compared to the largest value on the board? These need different triggers.
@@ -23,7 +23,7 @@ Status key: **open** = waiting on answers · **agreed** = decided, ready to buil
 
 **Request:** The mapped buildings look mirrored. Flip them so they sit in the right places on the satellite image.
 
-**Status:** open
+**Status:** built (round 2) — see decisions below
 
 **Notes**
 - I haven't confirmed the cause yet. The mirror could come from the map-builder export, the image-to-grid coordinate mapping in `dad.js`, or the WebGL ground texture. I'd want to compare a placed building in `map-builder.html` against the same spot in-game before changing anything.
@@ -44,7 +44,7 @@ Status key: **open** = waiting on answers · **agreed** = decided, ready to buil
 
 The difficulty toggle and controls go below those. Athena and Dad are different *environments/maps* that slightly alter gameplay, rather than separate games.
 
-**Status:** open
+**Status:** built (round 2) — see decisions below
 
 **Questions**
 - Difficulty: should it be a single toggle that applies to whichever mode you pick, or does each mode remember its own setting?
@@ -58,7 +58,7 @@ The difficulty toggle and controls go below those. Athena and Dad are different 
 
 **Request:** Lower the default round time to **3 minutes**. For other modes and harder games, increase in **2-minute** steps.
 
-**Status:** open
+**Status:** built (round 2) — see decisions below
 
 **Questions**
 - Does "harder games get more time" mean the *harder* difficulty gets longer rounds (3 → 5 → 7), or do you mean the other modes (Athena, Dad) get more time because they're harder to play? Please confirm which way it should go.
@@ -75,7 +75,7 @@ The difficulty toggle and controls go below those. Athena and Dad are different 
 - Completing a mission rewards one skill.
 - A guide arrow points toward the target, and the route works a little like a maze.
 
-**Status:** open
+**Status:** built (round 2) — see decisions below
 
 **Questions**
 - Which skills exist today in Dad's mode? I believe the hook, tail bullet and vacuum are the candidates, plus the burst (SPACE). Which of these should be earnable, and which (if any) should always be available?
@@ -91,3 +91,51 @@ The difficulty toggle and controls go below those. Athena and Dad are different 
 
 - Should we tackle these in order (1 → 5) or start with the quick ones (2 and 4)?
 - Should each item get its own PR, or one branch for the whole batch?
+
+---
+
+## Round 2 — your answers and what was built
+
+Answers you gave: head size = typical; the map flip is the texture only (3D objects are right), with a test script for a left-handed map; difficulty is per mode, using the current settings; round-time ladder confirmed; all five skills earned once, a pause of about a minute between missions, no penalty on failure, and the arrow follows the target.
+
+### 1. Growth when dominant — built
+- **Typical head** = median head value of the live bots (`typicalBotVal()` in `game-core.js`).
+- **Dominant** = your head ≥ `CFG.DOMINANCE_RATIO` (8) × typical. Checked in `playerDominant()`.
+- While dominant, each snack drop is `CFG.DOMINANCE_FOOD_MULT` (2) times bigger, and snack values reach up to `worldMax / 4` instead of `/ 16`.
+- Tune both in `config.js`.
+
+### 2. Flipped map — built, please check on your phone
+- The cause was the U coordinate in `_dadBuildMesh()` (`dad.js`). It flipped the satellite texture against the buildings, which are correct.
+- The flip is gone. Buildings should now sit on the matching part of the image.
+- Test script for the left-handed version: a **MirrorMap** toggle in the dev panel (⚙), or add `?mirror=1` to the URL. It is off by default.
+
+### 3. Start page — built
+- Four tiles: **FELIX · ATHENA · DAD · OTHERS**. Each tile shows its own options below, then **Controls**, then **START**.
+  - FELIX: EASY / HARD / INSANE
+  - ATHENA: EASY / HARD
+  - DAD: map, then NORMAL / HARD
+- OTHERS holds create/join room and the name field. It also has a BACK button.
+- The old BEGINNER/EXPERT panel was already hidden. Its Dad HARD buttons were unreachable, so they are gone. HARD now lives in the Dad options.
+- Button labels changed: the old "GUEST" label (easy Felix) is now EASY.
+
+### 4. Round time — built
+- Felix: EASY 3 min · HARD 5 min · INSANE 7 min (was unlimited).
+- Athena: EASY 5 min · HARD 7 min.
+- Dad's mode: NORMAL 5 min · HARD 7 min.
+- Multiplayer: co-op 5 min · versus 5 min (versus was 8 min).
+- The dev-panel Round Time slider still overrides the value until you pick another mode.
+
+### 5. Dad's missions — built
+- **Skills** start locked and unlock in this order: HOOK → TAIL BULLET → BURST → VACUUM. Each one stays unlocked for the rest of the session.
+- **Mission:** a random target between 40 and 300 steps away by walking route (a BFS over the collision grid). The HUD shows the target name and countdown.
+- **Time limit** = route steps ÷ `CELLS_PER_TICK` × tick time × 1.5, plus 15 s. Tune in `CFG_DAD_MISSION`.
+- **Arrival:** within 2.5 cells of the target unlocks the next skill and starts a 60 s pause.
+- **Timeout:** the mission ends silently, then the same 60 s pause.
+- **Arrow:** points from your head toward the target. It still works when the target is behind the camera.
+- After all four skills are earned, missions stop and the HUD reads "ALL SKILLS UNLOCKED".
+
+### Open points to confirm
+- Bots share the hook switch (`HOOK_ENABLED`), so once you earn HOOK, bots in Dad's mode can hook too. Should bots keep their weapons regardless?
+- Missions stop once all four skills are earned. Is that right, or should missions keep going with no reward?
+- Versus is now 5 min. Keep 5 or go back to 8?
+- The mission time assumes about 1 cell per tick. If missions feel too tight or too loose, change `CELLS_PER_TICK`.

@@ -126,7 +126,16 @@ applyMyValSlider(5); // startup default</pre>
 <h2 id="todo">TO DO</h2>
 <p class="note">Last rebuilt 2026-10-25. The previous list is archived in <a href="todo-archive.html">todo-archive.html</a>. Each item below was checked against the code on that date.</p>
 
-<h3>Done in this pass</h3>
+<h3>Done in round 2 (2026-10-25, see convo.md)</h3>
+<ul>
+  <li class="done">✅ Dad's map mirror fixed: the UV flip is removed (<code>dad.js</code> <code>_dadBuildMesh</code>). Test toggle: <code>CFG_DAD.MIRROR_MAP</code> via the dev panel or <code>?mirror=1</code>. lessons-learned #23.</li>
+  <li class="done">✅ Growth when dominant: player head ≥ <code>CFG.DOMINANCE_RATIO</code> × median bot head → bigger, more frequent snacks (<code>spawnFood()</code>).</li>
+  <li class="done">✅ Start page rebuilt: FELIX · ATHENA · DAD · OTHERS, a per-mode options row, controls and START. Multiplayer and rooms moved under OTHERS. Dead Dad HARD buttons removed. lessons-learned #24.</li>
+  <li class="done">✅ Round times: 3 min base; Felix 3/5/7, Athena 5/7, Dad 5/7, multiplayer 5. Set in <code>DIFF</code>, <code>athenaLevelCFG()</code> and <code>launchDadMode()</code>.</li>
+  <li class="done">✅ Dad's mode missions: no skills at start; each mission unlocks the next of hook → tail bullet → burst → vacuum. Missions use a BFS over the collision grid. Arrow and HUD in <code>dad.js</code>. Tune in <code>CFG_DAD_MISSION</code>. Skill gates use <code>skillUnlocked()</code> in <code>config.js</code>.</li>
+</ul>
+
+<h3>Done in the earlier pass (2026-10-25)</h3>
 <ul>
   <li class="done">✅ Removed the dead audio block from the MP overlay (<code>multiplayer.js</code>). <code>#startBtn</code> had no handler, <code>#a1</code>/<code>#a2</code> were never used, and a "30:00" heading showed in the menu. Music is handled by <code>music.js</code>.</li>
   <li class="done">✅ Dev-panel sliders now start from CFG: BotMax, Range, Chase, BotSpd, Snacks and Terrain Z. Before, they showed numbers that did not match the game (Range 28 vs actual 56). See lessons-learned #22.</li>
@@ -140,6 +149,8 @@ applyMyValSlider(5); // startup default</pre>
   <li class="todo">Dad's mode — trees do not block the snake. They are never rasterised into <code>DAD._collGrid</code>. Decide whether they should block (add them in <code>_dadBuildCollGrid()</code>) or drop this item.</li>
   <li class="todo">Dad's mode — trees draw after all buildings in <code>DAD.drawBg()</code>, so a tree behind a building shows on top. Fix: sort trees and building quads together in one painter's pass.</li>
   <li class="todo">Dad's mode — road boost has no visual feedback. Add a HUD indicator or speed-line effect while <code>DAD._isOnRoad()</code> is true for the player.</li>
+  <li class="todo">Confirm the mirror fix on a real phone: buildings should line up with the satellite image in both Walteria and Dalian. Also check MirrorMap is off by default.</li>
+  <li class="todo">Dad's mode: bots share <code>HOOK_ENABLED</code>, so they start hooking once the player earns HOOK. Decide whether bots should keep their own weapons.</li>
   <li class="todo">Consider a <code>BOT_START_VAL</code> separate from <code>PLAYER_START_VAL</code>. Nothing references it yet, so decide whether it is needed.</li>
   <li class="todo"><code>athena_piano_3.mp4</code> is in <code>CFG_AUDIO.PLAYLIST</code> but not in <code>music/</code>. <code>music.js</code> skips it on error, so it is harmless, but either add the file or remove the entry.</li>
   <li class="todo">Version strings disagree. <code>index.html</code>'s title says v3.2.0 and its header comment says v3.3.1. The <code>config.js</code> header and the load-error panel say v3.1.1. This file says current v3.2.0. Pick one and update them together.</li>

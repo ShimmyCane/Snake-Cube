@@ -34,7 +34,8 @@
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Player</div>
     <div class="sp-row"><label>Start Val</label><input class="sp-slider" id="startval-slider" type="range" min="1" max="11" value="1" step="1" style="--pct:0%"><span class="sp-val" id="startval-val">2</span></div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Debug</div>
-    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">Radar</label><input type="checkbox" id="radar-always-on" style="width:14px;height:14px;accent-color:#00f5c4;cursor:pointer"><span class="sp-val" id="radar-always-val" style="color:#555570">off</span></div>`;
+    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">Radar</label><input type="checkbox" id="radar-always-on" style="width:14px;height:14px;accent-color:#00f5c4;cursor:pointer"><span class="sp-val" id="radar-always-val" style="color:#555570">off</span></div>
+    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">MirrorMap</label><input type="checkbox" id="mirror-map" style="width:14px;height:14px;accent-color:#22aaff;cursor:pointer"><span class="sp-val" id="mirror-map-val" style="color:#555570">off</span></div>`;
   document.body.appendChild(el);
 })();
 
@@ -280,6 +281,19 @@ _radarAlwaysChk.addEventListener('change', () => {
   _radarAlwaysVal.textContent = RADAR_ALWAYS_ON ? 'on' : 'off';
   _radarAlwaysVal.style.color = RADAR_ALWAYS_ON ? '#00f5c4' : '#555570';
 });
+
+// Mirror map test (Dad's mode) — flips the satellite texture to check a left-handed map
+const _mirrorChk = document.getElementById('mirror-map');
+const _mirrorVal = document.getElementById('mirror-map-val');
+function applyMirrorToggle(on) {
+  _mirrorChk.checked = on;
+  _mirrorVal.textContent = on ? 'on' : 'off';
+  _mirrorVal.style.color = on ? '#22aaff' : '#555570';
+  if(typeof DAD !== 'undefined') DAD.setMirror(on);
+  else CFG_DAD.MIRROR_MAP = on;
+}
+_mirrorChk.addEventListener('change', () => applyMirrorToggle(_mirrorChk.checked));
+applyMirrorToggle(CFG_DAD.MIRROR_MAP); // startup: read CFG, don't overwrite it
 
 // ── Start Val slider — exponent 1–11 maps to 2^exp (2 … 2048) ──
 const _startvalSlider = document.getElementById('startval-slider');

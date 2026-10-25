@@ -183,6 +183,7 @@ function drawActionCooldowns(now) {
 // ── Tail Bullet ──
 function fireTailBullet() {
   if(!G || !G.running || !G.player || G.player.dead) return;
+  if(!skillUnlocked('tail')) return;
   const p = G.player;
   if(p.segs.length < 2) { showFlash('No tail to fire!', '#ff4444'); return; }
   const now = performance.now();

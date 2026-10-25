@@ -89,6 +89,7 @@ canvas.addEventListener('touchstart', e => {
 
 function triggerBurst() {
   if(!G || !G.running || !G.player || G.player.dead) return;
+  if(!skillUnlocked('burst')) return;
   const now2 = performance.now();
   if(now2 - (G.burstAt||0) < CFG.BURST_RECHARGE_MS) return; // still recharging
   G.burstAt = now2;

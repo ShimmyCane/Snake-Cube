@@ -255,18 +255,30 @@ function minSnackVal() {
   // Minimum snack = worldMax/64 — always edible by the weakest player
   return Math.max(2, Math.pow(2, Math.floor(Math.log2(Math.max(2, _worldMax / 64)))));
 }
+// Median head value of the live bots — the "typical" snake on the board.
+function typicalBotVal() {
+  const vals = (G.bots || []).filter(b => !b.dead && b.segs.length).map(b => b.segs[0].val).sort((a, b) => a - b);
+  return vals.length ? vals[Math.floor(vals.length / 2)] : 2;
+}
+// True when the player's head is DOMINANCE_RATIO × the typical bot head or more.
+function playerDominant() {
+  if(!G.player || G.player.dead || !G.player.segs.length) return false;
+  return G.player.segs[0].val >= typicalBotVal() * CFG.DOMINANCE_RATIO;
+}
 function spawnFood() {
   if(!G || !G.food) return;
   const fieldMax = CFG.FOOD_FIELD_MAX;
   if(G.food.length >= fieldMax) return;
+  // Dominant player: feed everyone else faster, with bigger snacks, so the field stays worth eating
+  const dominant = playerDominant();
   const deficit = fieldMax - G.food.length;
-  const count = Math.max(1, Math.round(deficit * CFG.FOOD_BATCH_PCT));
+  const count = Math.max(1, Math.round(deficit * CFG.FOOD_BATCH_PCT)) * (dominant ? CFG.DOMINANCE_FOOD_MULT : 1);
   // Fast occupation check: random probe, max 20 tries per food item
   const occ = new Set();
   allSnakes().forEach(sn => sn.segs.forEach(s => occ.add(s.col+','+s.row)));
   G.food.forEach(f => occ.add(f.col+','+f.row));
   const loFood = minSnackVal();
-  const hiFood = Math.max(loFood, Math.pow(2, Math.floor(Math.log2(Math.max(2, _worldMax / 16)))));
+  const hiFood = Math.max(loFood, Math.pow(2, Math.floor(Math.log2(Math.max(2, _worldMax / (dominant ? 4 : 16))))));
   const logRange = Math.log2(Math.max(2, hiFood / loFood));
   for(let i=0; i<count && G.food.length<fieldMax; i++) {
     let col, row, found=false;
@@ -313,6 +325,7 @@ function spawnInvinc() {
 }
 function spawnVacuum() {
   if(!G || !G.running) return;
+  if(!skillUnlocked('vacuum')) return;
   // G.specials = (G.specials||[]).filter(s=>s.type!=='vacuum');
   const pos = randomFreeCell();
   if(pos) G.specials.push({col:pos.col, row:pos.row, type:'vacuum', expiresAt: performance.now()+20000});

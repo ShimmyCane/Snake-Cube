@@ -32,7 +32,7 @@ const CFG = {
   BOT_SPAWN_MS: Math.round(15000 / WORLD_DENSITY),
   DIFFICULTY: 1.0,
   MERGE_EVERY: 4,
-  ROUND_SEC: 300,
+  ROUND_SEC: 180,           // 3 min default; harder modes and other modes add 2 min (see DIFF in multiplayer.js)
   BOT_RANGE: 56,            // bigger world → longer visible range
   BOT_CHASE_RANGE: 96,       // how far bots will chase before giving up
   BOT_FOOD_SCAN_MULT: 2.0,  // bots scan for food/specials within this × BOT_CHASE_RANGE (1–3)
@@ -47,11 +47,13 @@ const CFG = {
   LEVEL_THRESHOLD: 1024,   // base, but milestones override below
   LEVEL_SPEED_MULT: 0.92,   // gentler speed increase per milestone
   RADAR_INTERVAL_MS: 8000,
+  DOMINANCE_RATIO: 8,       // player head ≥ this × typical (median) bot head → growth boost for everyone else
+  DOMINANCE_FOOD_MULT: 2,   // snack batch size multiplier while dominant (snacks also get bigger)
   BURST_DIST: 3.0,
   BURST_RECHARGE_MS: 5000,
   // ── Multiplayer ──
   MP_COOP_ROUND_SEC: 300,          // 5 min co-op
-  MP_COMP_ROUND_SEC: 480,          // 8 min competitive
+  MP_COMP_ROUND_SEC: 300,          // 5 min competitive
   MP_COMP_SPEED_ADV: 0.02,         // 2% speed advantage per level gap (competitive)
   MP_COMP_SPEED_ADV_MAX: 5,        // max level gap counted (max 10% bonus)
   MP_COOP_LARGE_BOT_VAL: 64,       // bot headVal threshold for co-op "big kill" bonus
@@ -289,5 +291,13 @@ const CFG_DAD = {
   SCALE:             6.0,                   // map scale multiplier — >1 zooms in
   ROAD_BOOST:        0.50,                  // fractional speed bonus when on a road (0.5 = 50% faster)
   ROAD_BOOST_OFFSET: 0.6,                   // extra world-units beyond road half-width that count as "on road"
+  MIRROR_MAP:        false,                 // test only: mirror the satellite texture (left-handed map). Also ?mirror=1
 };
+if (/[?&]mirror=1\b/.test(location.search)) CFG_DAD.MIRROR_MAP = true;
+
+// Dad's mode gates weapons behind missions. Every other mode keeps all skills on.
+function skillUnlocked(name) {
+  if (typeof DAD === 'undefined' || !DAD.active) return true;
+  return !!DAD.skills[name];
+}
 const DAD_BG = { bg: '#0a0c0f', grid: '#0a0c0f', edge: '#000000' };

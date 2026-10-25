@@ -273,6 +273,14 @@ _rangeSlider.addEventListener('input', () =&gt; applyRangeSlider(parseInt(_range
 applyRangeSlider(CFG.BOT_RANGE); // startup: read CFG, don't overwrite it</pre>
 <p><span class="good">CHECK:</span> Load the page in a browser and compare each <code>#x-slider</code>'s <code>.value</code> with the CFG key it drives. Scale factors matter: <code>CFG.BOT_SPEED * 100</code> needs <code>Math.round</code>.</p>
 
+<h2>23. A FLIP IN ONE PLACE MIRRORS THE WHOLE MAP — CHECK THE UV MAP AGAINST THE OBJECTS</h2>
+<p>Dad's mode draws the satellite image on a mesh whose UVs are computed from world cells, while buildings are placed in world cells too. A U flip (<code>1 - c/vc</code>) was added to the mesh, so the picture no longer lined up with the buildings. Nothing errored; it just looked wrong.</p>
+<p><span class="good">RULE:</span> The texture coordinate must increase in the same direction as the world coordinate it is paired with. Test with a known landmark, not by eye. The mirror test toggle (<code>CFG_DAD.MIRROR_MAP</code>, dev panel or <code>?mirror=1</code>) exists to compare the two.</p>
+
+<h2>24. A HIDDEN START SCREEN CAN HOLD BUTTONS THAT LOOK REAL IN THE CODE</h2>
+<p>The old <code>#s-start</code> panel was hidden on load, but its Dad HARD buttons were still wired up in <code>dad.js</code>. Nothing could reach them. The start menu was rebuilt in <code>mp-overlay</code>, the screen that is actually visible.</p>
+<p><span class="good">CHECK:</span> Before adding a button, confirm the element is visible at runtime: <code>isVisible()</code> in a browser, not just the class names.</p>
+
 <h2>16. OVERLAY z-index BLOCKS HUD BUTTONS</h2>
 <p>Fullscreen overlays use <code>position:fixed; inset:0; z-index:100</code>. If <code>#hud</code> has no <code>z-index</code> it sits in the default stacking context (z-index: auto ≈ 0) — <em>below</em> the overlay — even though it is visually above it due to opacity and layout order. Clicks on HUD buttons pass through to the overlay behind.</p>
 <div class="warn">

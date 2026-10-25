@@ -27,24 +27,29 @@
   el.id = 'mp-overlay'; el.className = 'hidden';
   el.innerHTML = `
     <div id="mp-screen-main">
-      <h2 style="margin-bottom:6px;text-align:center">FELIX'S<br>SNAKE CUBES</h2>
+      <h2 style="margin-bottom:8px;text-align:center">FELIX'S<br>SNAKE CUBES</h2>
+      <div style="width:100%;max-width:300px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="ctrl-pill" id="menu-felix" style="padding:14px 4px;font-size:0.72rem">🐍 FELIX</button>
+        <button class="ctrl-pill" id="menu-athena" style="padding:14px 4px;font-size:0.72rem;border-color:#bf5fff;color:#bf5fff">🦉 ATHENA</button>
+        <button class="ctrl-pill" id="menu-dad" style="padding:14px 4px;font-size:0.72rem;border-color:#22aaff;color:#22aaff">🏘️ DAD</button>
+        <button class="ctrl-pill" id="menu-others" style="padding:14px 4px;font-size:0.72rem">👥 OTHERS</button>
+      </div>
+      <div id="menu-opts" style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:6px;margin-top:6px"></div>
+      <div style="width:100%;max-width:300px;margin-top:6px">
+        <p class="menu-section-label">Controls</p>
+        <div style="display:flex;gap:8px">
+          <button class="ctrl-pill" id="ctrl-felix-btn">🎮 FELIX<br><span style="font-size:0.5rem;opacity:0.6">hold &amp; steer</span></button>
+          <button class="ctrl-pill" id="ctrl-joy-btn">🕹️ JOYSTICK<br><span style="font-size:0.5rem;opacity:0.6">pad + hook</span></button>
+        </div>
+      </div>
+      <button class="mp-btn solid" id="menu-start" style="width:100%;max-width:300px;margin-top:12px;padding:12px">START</button>
+    </div>
+    <div id="mp-screen-others" class="hidden">
+      <h2 style="margin-bottom:8px;text-align:center">OTHERS</h2>
       <div id="mp-name-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input id="mp-name-input" type="text" maxlength="12" placeholder="Your name" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:5px;">
-        <p class="menu-section-label">Solo Play</p>
-        <div style="display:flex;gap:8px">
-          <button class="mp-btn" id="mp-btn-easy" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35">😌 GUEST<br><span style="font-size:0.56rem;opacity:0.55">Easy · 3 min</span></button>
-          <button class="mp-btn" id="mp-btn-hard" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35">😤 FELIX<br><span style="font-size:0.56rem;opacity:0.55">Hard · 5 min</span></button>
-          <button class="mp-btn" id="mp-btn-insane" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35;border-color:#ff4444;color:#ff4444">💀 INSANE<br><span style="font-size:0.56rem;opacity:0.55">∞ · no limit</span></button>
-        </div>
-        <p class="menu-section-label" style="color:#bf5fff;margin-top:4px">Athena's Challenge</p>
-        <div style="display:flex;gap:15px">
-          <button class="mp-btn" id="mp-btn-athena-easy" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35;border-color:#bf5fff;color:#bf5fff">🦉 EASY<br><span style="font-size:0.56rem;opacity:0.55">Slower · shrinking world</span></button>
-          <button class="mp-btn" id="mp-btn-athena-hard" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35;border-color:#ff6b35;color:#ff6b35">🦉 HARD<br><span style="font-size:0.56rem;opacity:0.55">Dense · multiple levels</span></button>
-        </div>
-        <p class="menu-section-label" style="color:#22aaff;margin-top:4px">Dad's Mode</p>
-        <div id="mp-dad-btns" style="display:flex;gap:8px;flex-wrap:wrap"></div>
         <p class="menu-section-label" style="margin-top:4px">Multiplayer</p>
         <div style="display:flex;gap:8px">
           <button class="mp-btn solid" id="mp-btn-host-coop" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35">🤝 CO-OP<br><span style="font-size:0.56rem;opacity:0.7">create room</span></button>
@@ -56,14 +61,8 @@
           <button class="mp-btn orange" id="mp-btn-join-comp" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35">⚔️ TRY JOIN<br><span style="font-size:0.56rem;opacity:0.55">VERSUS</span></button>
         </div>
       </div>
-      <div style="width:100%;max-width:300px;margin-top:6px">
-        <p class="menu-section-label">Controls</p>
-        <div style="display:flex;gap:8px">
-          <button class="ctrl-pill" id="ctrl-felix-btn">🎮 FELIX<br><span style="font-size:0.5rem;opacity:0.6">hold &amp; steer</span></button>
-          <button class="ctrl-pill" id="ctrl-joy-btn">🕹️ JOYSTICK<br><span style="font-size:0.5rem;opacity:0.6">pad + hook</span></button>
-        </div>
-      </div>
       <p id="mp-status" style="font-size:0.65rem;color:#555570;min-height:1.1em;margin-top:4px;text-align:center"></p>
+      <button class="mp-btn" id="mp-btn-others-back" style="width:100%;max-width:300px;margin-top:10px;padding:10px">← BACK</button>
     </div>
     <div id="mp-screen-connecting" class="hidden">
       <h2>CONNECTING</h2>
@@ -142,12 +141,13 @@ function loadPeerJS(cb) {
 // ── Screen helpers ──
 function showMPScreen(name) {
   document.getElementById('mp-overlay').classList.remove('hidden');
-  const main    = document.getElementById('mp-screen-main');
-  const conn    = document.getElementById('mp-screen-connecting');
-  const waiting = document.getElementById('mp-screen-waiting');
-  if(main)    main.classList.toggle('hidden', name !== 'main');
-  if(conn)    conn.classList.toggle('hidden', name !== 'connecting');
-  if(waiting) waiting.classList.toggle('hidden', name !== 'waiting');
+  // Unknown names (e.g. legacy 'menu') fall back to the start menu
+  const show = ['main', 'others', 'connecting', 'waiting'].includes(name) ? name : 'main';
+  const screens = { main: 'mp-screen-main', others: 'mp-screen-others', connecting: 'mp-screen-connecting', waiting: 'mp-screen-waiting' };
+  for(const key in screens) {
+    const el = document.getElementById(screens[key]);
+    if(el) el.classList.toggle('hidden', show !== key);
+  }
 }
 function hideMPOverlay() {
   document.getElementById('mp-overlay').classList.add('hidden');
@@ -170,7 +170,7 @@ function savePlayerName(n) {
 const DIFF = {
   easy:   { ROUND_SEC:180, NUM_BOTS: Math.round(16 * WORLD_DENSITY), BOT_MAX: Math.round(26 * WORLD_DENSITY),  DIFFICULTY:0.9,  BOT_CHASE_RANGE:72  }, // 3 min
   hard:   { ROUND_SEC:300, NUM_BOTS: Math.round(32 * WORLD_DENSITY), BOT_MAX: Math.round(60 * WORLD_DENSITY),  DIFFICULTY:1.8,  BOT_CHASE_RANGE:104 }, // 5 min
-  insane: { ROUND_SEC:0,   NUM_BOTS: Math.round(44 * WORLD_DENSITY), BOT_MAX: Math.round(88 * WORLD_DENSITY),  DIFFICULTY:3.0,  BOT_CHASE_RANGE:144 }, // unlimited
+  insane: { ROUND_SEC:420, NUM_BOTS: Math.round(44 * WORLD_DENSITY), BOT_MAX: Math.round(88 * WORLD_DENSITY),  DIFFICULTY:3.0,  BOT_CHASE_RANGE:144 }, // 7 min
 };
 let _diffPreset = 'hard';
 
@@ -192,59 +192,76 @@ function initMPOverlay() {
     if(v) { MP.localName = v; savePlayerName(v); }
   });
 
-  // Dad's Mode — populate one button per loaded map bundle
-  const mpDadContainer = document.getElementById('mp-dad-btns');
-  if (mpDadContainer) {
-    const dadMaps = Object.keys(window._DAD_MAPS_DATA || {});
-    if (dadMaps.length === 0) {
-      mpDadContainer.innerHTML = '<span style="font-size:0.65rem;opacity:0.4;padding:6px">No maps loaded</span>';
+  // ── Start menu ──
+  // Four modes. Each mode has its own options (difficulty; map for Dad's).
+  // START launches the selected mode with its current settings.
+  const dadMaps = Object.keys(window._DAD_MAPS_DATA || {});
+  const MENU = { mode: 'felix', felix: 'hard', athena: 'easy', dad: 'normal', map: dadMaps[0] || null };
+  const dadLabel = path => {
+    const data = window._DAD_MAPS_DATA && window._DAD_MAPS_DATA[path];
+    const raw  = (data && data.id) || path.replace(/^assets\//, '').replace(/\.json$/i, '');
+    return (raw.charAt(0).toUpperCase() + raw.slice(1)).toUpperCase();
+  };
+  function renderMenu() {
+    const tiles = { felix: 'menu-felix', athena: 'menu-athena', dad: 'menu-dad' };
+    for (const m in tiles) document.getElementById(tiles[m]).classList.toggle('active', MENU.mode === m);
+    const box = document.getElementById('menu-opts');
+    box.innerHTML = '';
+    const pills = (rowLabel, items, selected, onPick) => {
+      const lbl = document.createElement('p');
+      lbl.className = 'menu-section-label';
+      lbl.textContent = rowLabel;
+      box.appendChild(lbl);
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px';
+      for (const [key, text] of items) {
+        const b = document.createElement('button');
+        b.className = 'ctrl-pill' + (key === selected ? ' active' : '');
+        b.textContent = text;
+        b.addEventListener('click', () => { onPick(key); renderMenu(); });
+        row.appendChild(b);
+      }
+      box.appendChild(row);
+    };
+    if (MENU.mode === 'felix') {
+      pills('DIFFICULTY', [['easy', 'EASY · 3 min'], ['hard', 'HARD · 5 min'], ['insane', 'INSANE · 7 min']], MENU.felix, v => { MENU.felix = v; });
+    } else if (MENU.mode === 'athena') {
+      pills('DIFFICULTY', [['easy', 'EASY · 5 min'], ['hard', 'HARD · 7 min']], MENU.athena, v => { MENU.athena = v; });
+    } else if (MENU.mode === 'dad') {
+      pills('MAP', dadMaps.map(p => [p, dadLabel(p)]), MENU.map, v => { MENU.map = v; });
+      pills('DIFFICULTY', [['normal', 'NORMAL · 5 min'], ['hard', 'HARD · 7 min']], MENU.dad, v => { MENU.dad = v; });
     }
-    dadMaps.forEach(function(path) {
-      const data  = window._DAD_MAPS_DATA[path];
-      const raw   = (data && data.id) || path.replace(/^assets\//, '').replace(/\.json$/i, '');
-      const label = (raw.charAt(0).toUpperCase() + raw.slice(1)).toUpperCase();
-      const btn   = document.createElement('button');
-      btn.className   = 'mp-btn';
-      btn.style.cssText = 'flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35;border-color:#22aaff;color:#22aaff';
-      btn.innerHTML = '🏘️ ' + label + '<br><span style="font-size:0.56rem;opacity:0.55">satellite world</span>';
-      btn.addEventListener('click', async function() {
-        if (typeof loadDadMap === 'undefined') {
-          alert('Dad\'s Mode not loaded.\nCheck the ℹ panel — js/dad.js may have failed.');
-          return;
-        }
-        btn.disabled    = true;
-        btn.textContent = 'Loading…';
-        try {
-          await loadDadMap(path);
-          hideMPOverlay();
-          document.getElementById('s-start').classList.add('hidden');
-          startDad();
-        } catch (err) {
-          console.error('DAD:', err);
-          btn.disabled  = false;
-          btn.innerHTML = '🏘️ ' + label + '<br><span style="font-size:0.56rem;opacity:0.55">satellite world</span>';
-          alert('Dad\'s Mode failed:\n' + err.message + '\n\nIf using file://, open via a local server instead (npx serve .)');
-        }
-      });
-      mpDadContainer.appendChild(btn);
-    });
   }
-
-  document.getElementById('mp-btn-athena-easy').addEventListener('click', () => {
-    ATHENA.diffMode = 'easy'; startAthena();
-  });
-  document.getElementById('mp-btn-athena-hard').addEventListener('click', () => {
-    ATHENA.diffMode = 'hard'; startAthena();
-  });
-  document.getElementById('mp-btn-easy').addEventListener('click', () => {
-    applyDifficulty('easy'); updateGameTitle('GUEST MODE'); startSolo();
-  });
-  document.getElementById('mp-btn-hard').addEventListener('click', () => {
-    applyDifficulty('hard'); updateGameTitle('FELIX MODE'); startSolo();
-  });
-  document.getElementById('mp-btn-insane').addEventListener('click', () => {
-    applyDifficulty('insane'); updateGameTitle('INSANE MODE'); startSolo();
-  });
+  async function startSelected() {
+    if (MENU.mode === 'felix') {
+      applyDifficulty(MENU.felix);
+      updateGameTitle(MENU.felix === 'easy' ? 'GUEST MODE' : MENU.felix === 'insane' ? 'INSANE MODE' : 'FELIX MODE');
+      startSolo();
+    } else if (MENU.mode === 'athena') {
+      ATHENA.diffMode = MENU.athena;
+      startAthena();
+    } else if (MENU.mode === 'dad' && MENU.map) {
+      const btn = document.getElementById('menu-start');
+      btn.disabled = true;
+      btn.textContent = 'LOADING…';
+      try {
+        await launchDadMode(MENU.map, MENU.dad === 'hard');
+      } catch (err) {
+        console.error('DAD:', err);
+        alert('Could not load Dad\'s Mode:\n' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'START';
+      }
+    }
+  }
+  document.getElementById('menu-felix').addEventListener('click',  () => { MENU.mode = 'felix';  renderMenu(); });
+  document.getElementById('menu-athena').addEventListener('click', () => { MENU.mode = 'athena'; renderMenu(); });
+  document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); });
+  document.getElementById('menu-others').addEventListener('click', () => showMPScreen('others'));
+  document.getElementById('menu-start').addEventListener('click',  startSelected);
+  document.getElementById('mp-btn-others-back').addEventListener('click', () => showMPScreen('main'));
+  renderMenu();
 
   // Create room
   document.getElementById('mp-btn-host-coop').addEventListener('click', () => {

@@ -171,7 +171,9 @@ function _dadBuildMesh(gridCols, gridRows, subDiv) {
     for (let c = 0; c <= vc; c++) {
       pos[pi++] = c / subDiv;   // world col (0..gridCols)
       pos[pi++] = r / subDiv;   // world row (0..gridRows)
-      uv[ui++]  = 1.0 - c / vc; // u 0..1 (flipped to correct horizontal mirror)
+      // u 0..1 follows world col, so image x lines up with building x.
+      // The old flip (1 - c/vc) mirrored the satellite against the buildings.
+      uv[ui++]  = CFG_DAD.MIRROR_MAP ? 1.0 - c / vc : c / vc;
       uv[ui++]  = r / vr;       // v 0..1 (image top = v=0)
     }
   }
@@ -260,6 +262,9 @@ function _dadBuildGeom() {
     subDiv
   );
   DAD._triCount = mesh.triCount;
+
+  // Free the previous buffers — this also runs when the mirror test toggle changes
+  for (const b of [DAD._posBuf, DAD._uvBuf, DAD._idxBuf]) if (b) gl.deleteBuffer(b);
 
   DAD._posBuf  = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, DAD._posBuf);
@@ -641,87 +646,215 @@ function startDad() {
   _dadUploadTex(DAD._img);
   _dadBuildGeom();
 
+  _dadResetProgress();
   initGame();
 }
 
 // Called from main.js draw() each frame instead of the normal ground-tile loop.
 // Renders satellite to the WebGL canvas, then composites it onto the 2D canvas.
 DAD.drawBg = function() {
+  _dadTickMissions();
   _dadRender();
   if (DAD._bgCanvas) ctx.drawImage(DAD._bgCanvas, 0, 0, W, H);
   _dadDrawBuildings();
   _dadDrawTrees();
 };
 
+// Mirror test toggle (settings panel / ?mirror=1): rebuild the ground mesh with the new UV mapping.
+DAD.setMirror = function(on) {
+  CFG_DAD.MIRROR_MAP = !!on;
+  if (DAD._gl && DAD.map) _dadBuildGeom();
+};
+
 // ══════════════════════════════════════════════════════════════════════
-//  DOM WIRING — dynamically build one row of buttons per map.
-//  Maps auto-populate from window._DAD_MAPS_DATA, which each *-map.js
-//  bundle populates on load.  To add a new map: export its bundle from
-//  map-builder.html and add ONE script tag — nothing else to edit.
+//  SKILLS & MISSIONS
+//  Dad's mode starts with no skills. Each completed mission unlocks the
+//  next locked skill, for the rest of the session. A mission that runs
+//  out of time simply ends: no penalty, no message. A pause follows every
+//  mission before the next one starts.
 // ══════════════════════════════════════════════════════════════════════
 
-window.addEventListener('load', function() {
-  const container = document.getElementById('dad-map-btns');
-  if (!container) return;
+const DAD_SKILL_ORDER = ['hook', 'tail', 'burst', 'vacuum'];
+const DAD_SKILL_LABEL = { hook: 'HOOK', tail: 'TAIL BULLET', burst: 'BURST', vacuum: 'VACUUM' };
 
-  // Discover available maps from loaded *-map.js bundles.
-  // To add a new map: drop its *-map.js <script> tag into the HTML — no config edits needed.
-  const bundleData = window._DAD_MAPS_DATA || {};
-  const mapPaths   = Object.keys(bundleData);
+const CFG_DAD_MISSION = {
+  REACH_RADIUS:  2.5,     // cells — how close the head must get to the target
+  PAUSE_MS:      60000,   // pause between missions (after success or timeout)
+  MIN_PATH:      40,      // target is at least this many steps away by road/open ground…
+  MAX_PATH:      300,     // …and at most this many
+  CELLS_PER_TICK: 1.0,    // assumed head speed, used for the time limit — tune if missions feel too tight/loose
+  TIME_FACTOR:   1.5,     // allotted time = path length at that speed × this…
+  TIME_BONUS_MS: 15000,   // …plus this flat allowance
+};
 
-  function mapLabel(path) {
-    const raw = (bundleData[path] && bundleData[path].id) || path.replace(/^assets\//, '').replace(/\.json$/i, '');
-    return (raw.charAt(0).toUpperCase() + raw.slice(1)).toUpperCase();
-  }
+function _dadAllUnlocked() { return DAD_SKILL_ORDER.every(s => DAD.skills[s]); }
 
-  async function launchMap(path, hard, btn, hardBtn) {
-    const label = mapLabel(path);
-    btn.disabled     = true;
-    hardBtn.disabled = true;
-    (hard ? hardBtn : btn).textContent = 'Loading…';
-    try {
-      await loadDadMap(path);
-      if (hard) {
-        Object.assign(CFG_EXPERT, CFG_DAD_HARD);
-        EXPERT_MODE  = true;
-        HOOK_ENABLED = true;
-      }
-      const ss = document.getElementById('s-start');
-      if (ss) ss.classList.add('hidden');
-      const mp = document.getElementById('mp-overlay');
-      if (mp) mp.classList.add('hidden');
-      startDad();
-    } catch (err) {
-      console.error('DAD:', err);
-      btn.disabled     = false;
-      hardBtn.disabled = false;
-      btn.textContent      = label;
-      hardBtn.textContent  = label + ' (HARD)';
-      if (hard) EXPERT_MODE = false;
-      alert('Could not load Dad\'s Mode:\n' + err.message);
+function _dadResetProgress() {
+  DAD.skills = { hook: false, tail: false, burst: false, vacuum: false };
+  DAD.mission = null;
+  DAD.missionNum = 0;
+  DAD._pauseLeftMs = 0;   // first mission starts straight away
+  DAD._lastTickAt = 0;
+  HOOK_ENABLED = false;
+  TAILBULLET_ENABLED = false;
+  updateHookVisibility();
+  updateTailBulletVisibility();
+}
+
+function _dadUnlockNextSkill() {
+  const next = DAD_SKILL_ORDER.find(s => !DAD.skills[s]);
+  if (!next) return;
+  DAD.skills[next] = true;
+  if (next === 'hook') HOOK_ENABLED = true;
+  if (next === 'tail') TAILBULLET_ENABLED = true;
+  updateHookVisibility();
+  updateTailBulletVisibility();
+  showFlash('SKILL UNLOCKED · ' + DAD_SKILL_LABEL[next], '#22aaff');
+}
+
+// Breadth-first search over the collision grid from the head. Targets are
+// cells whose walking distance falls in the allowed range, so every mission
+// is reachable and its time limit follows the real route, not a straight line.
+function _dadPickMission() {
+  const cols = CFG.COLS, rows = CFG.ROWS;
+  const dist  = new Int32Array(cols * rows).fill(-1);
+  const queue = new Int32Array(cols * rows);
+  const h = G.player.segs[0];
+  const start = Math.round(h.row) * cols + Math.round(h.col);
+  dist[start] = 0;
+  queue[0] = start;
+  let qh = 0, qt = 1;
+  const candidates = [];
+  const { MIN_PATH, MAX_PATH } = CFG_DAD_MISSION;
+
+  while (qh < qt) {
+    const cur = queue[qh++];
+    const d = dist[cur];
+    if (d >= MIN_PATH) candidates.push(cur);
+    if (d >= MAX_PATH) continue;
+    const c = cur % cols, r = (cur - c) / cols;
+    for (const [nc, nr] of [[c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]]) {
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+      const ni = nr * cols + nc;
+      if (dist[ni] >= 0 || DAD._isWall(nc, nr)) continue;
+      dist[ni] = d + 1;
+      queue[qt++] = ni;
     }
   }
+  if (!candidates.length) return null;
 
-  for (const path of mapPaths) {
-    const label = mapLabel(path);
-    const row   = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:12px';
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const pc = pick % cols, pr = (pick - pc) / cols;
+  const limitMs = dist[pick] / CFG_DAD_MISSION.CELLS_PER_TICK * CFG.TICK_MS * CFG_DAD_MISSION.TIME_FACTOR
+                + CFG_DAD_MISSION.TIME_BONUS_MS;
+  return { col: pc, row: pr, name: pickCity('us'), limitMs, elapsedMs: 0 };
+}
 
-    const btn = document.createElement('button');
-    btn.className   = 'btn';
-    btn.style.cssText = 'background:#22aaff;box-shadow:0 0 20px rgba(34,170,255,.3)';
-    btn.textContent = label;
+function _dadTickMissions() {
+  const now = performance.now();
+  const dt = DAD._lastTickAt ? Math.min(100, now - DAD._lastTickAt) : 0;
+  DAD._lastTickAt = now;
+  if (!G || !G.running || G.paused || !G.player || G.player.dead) return;
+  if (_dadAllUnlocked()) { DAD.mission = null; return; }
 
-    const hardBtn = document.createElement('button');
-    hardBtn.className   = 'btn';
-    hardBtn.style.cssText = 'background:#1166cc;box-shadow:0 0 20px rgba(17,102,204,.3)';
-    hardBtn.textContent = label + ' (HARD)';
-
-    btn.addEventListener('click',     () => launchMap(path, false, btn, hardBtn));
-    hardBtn.addEventListener('click', () => launchMap(path, true,  btn, hardBtn));
-
-    row.appendChild(btn);
-    row.appendChild(hardBtn);
-    container.appendChild(row);
+  if (!DAD.mission) {
+    DAD._pauseLeftMs -= dt;
+    if (DAD._pauseLeftMs > 0) return;
+    DAD.mission = _dadPickMission();
+    DAD._pauseLeftMs = CFG_DAD_MISSION.PAUSE_MS;  // used again if no route was found
+    if (DAD.mission) DAD.missionNum++;
+    return;
   }
-});
+
+  const m = DAD.mission;
+  m.elapsedMs += dt;
+  const h = G.player.segs[0];
+  if (Math.hypot(h.col - m.col, h.row - m.row) <= CFG_DAD_MISSION.REACH_RADIUS) {
+    _dadUnlockNextSkill();
+    DAD.mission = null;
+    DAD._pauseLeftMs = CFG_DAD_MISSION.PAUSE_MS;
+  } else if (m.elapsedMs >= m.limitMs) {
+    // Out of time: the mission ends quietly. No penalty.
+    DAD.mission = null;
+    DAD._pauseLeftMs = CFG_DAD_MISSION.PAUSE_MS;
+  }
+}
+
+// Arrow from the head toward the target. Its direction comes from projecting
+// a step toward the target, so it still points correctly when the target is
+// behind the camera.
+function _dadDrawArrow(m) {
+  const h = G.player.segs[0];
+  const hp = project3(h.col, 0, h.row);
+  const dl = Math.hypot(m.col - h.col, m.row - h.row) || 1;
+  const hp2 = project3(h.col + (m.col - h.col) / dl, 0, h.row + (m.row - h.row) / dl);
+  if (!hp || !hp2) return;
+  let sx = hp2.x - hp.x, sy = hp2.y - hp.y;
+  const sl = Math.hypot(sx, sy) || 1;
+  sx /= sl; sy /= sl;
+
+  ctx.save();
+  ctx.translate(hp.x + sx * 70, hp.y + sy * 70);
+  ctx.rotate(Math.atan2(sy, sx));
+  ctx.beginPath();
+  ctx.moveTo(16, 0); ctx.lineTo(-10, -10); ctx.lineTo(-4, 0); ctx.lineTo(-10, 10); ctx.closePath();
+  ctx.fillStyle   = '#22aaff';
+  ctx.shadowColor = '#22aaff';
+  ctx.shadowBlur  = 12;
+  ctx.fill();
+  ctx.restore();
+
+  const tp = project3(m.col, 0, m.row);
+  if (tp) {
+    ctx.save();
+    ctx.strokeStyle = '#22aaff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tp.x, tp.y, 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// Status line under the HUD: current mission, pause countdown, or all-done.
+function _dadDrawMissionHUD() {
+  if (!G || !G.running) return;
+  const m = DAD.mission;
+  const fmt = ms => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+  let line;
+  if (m) line = `MISSION ${DAD.missionNum} · GO TO ${m.name.toUpperCase()} · ${fmt(m.limitMs - m.elapsedMs)}`;
+  else if (_dadAllUnlocked()) line = 'ALL SKILLS UNLOCKED';
+  else line = `NEXT MISSION IN ${fmt(DAD._pauseLeftMs)}`;
+  const unlocked = DAD_SKILL_ORDER.filter(s => DAD.skills[s]).map(s => DAD_SKILL_LABEL[s]);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 12px "Courier New", monospace';
+  ctx.fillStyle = '#22aaff';
+  ctx.fillText(line, W / 2, 96);
+  ctx.font = '10px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(200,200,216,0.75)';
+  ctx.fillText('SKILLS: ' + (unlocked.join(' · ') || 'NONE'), W / 2, 112);
+  ctx.restore();
+
+  if (m) _dadDrawArrow(m);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  PUBLIC API — the start menu (multiplayer.js) launches Dad's mode.
+// ══════════════════════════════════════════════════════════════════════
+
+async function launchDadMode(path, hard) {
+  await loadDadMap(path);
+  EXPERT_MODE = !!hard;
+  if (hard) Object.assign(CFG_EXPERT, CFG_DAD_HARD);
+  CFG.ROUND_SEC = hard ? 420 : 300;   // 7 min hard, 5 min normal (3 min base + 2 per step)
+  const ss = document.getElementById('s-start');
+  if (ss) ss.classList.add('hidden');
+  const mp = document.getElementById('mp-overlay');
+  if (mp) mp.classList.add('hidden');
+  startDad();
+}

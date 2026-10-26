@@ -35,12 +35,12 @@ The earlier draft said "one mode"; your answer to 7 makes it two. Everything els
                                     new symbols grow from the tail end
 ```
 
-The snake stores one integer, `value`. The body is always `toRoman(value)`, one symbol per cell, read from head to tail. When the value changes:
+The snake stores one integer, `value`. The body is always `toRoman(value)`, one symbol per cell, read from head to tail. The head is cell 0 and carries the first symbol, so it is part of the number: XX is a head X and a tail X, VI is V then I. When the value changes:
 
 | The numeral gets… | On the field |
 |---|---|
 | longer | Classic growth. The tail stays put one tick per extra symbol, so the body grows out of the tail. |
-| ligature | Subtractive pairs (IV, IX, XL, XC, CD, CM) are one tile spanning two cells, so IV reads as one symbol. |
+| ligature | Subtractive pairs (IV, IX, XL, XC, CD, CM) are one symbol and one cell. So 4 is just a head with no tail. |
 | shorter | Collapse. The extra tail cells drop off at once, with a floating pop "III + I → IV". |
 | the same length | The tiles just relabel (IV + V = IX). |
 
@@ -50,10 +50,10 @@ These lengths are computed, not typed by hand.
 
 | Value | Numeral | Length | Lesson |
 |---|---|---|---|
-| 3 → 4 | III → IV | 3 → 2 | Eating can make you shorter |
-| 8 → 9 → 10 | VIII → IX → X | 4 → 2 → 1 | Two snacks and you're one tile |
-| 38 → 40 | XXXVIII → XL | 7 → 2 | Count your way out of a tight spot |
-| 88 → 90 | LXXXVIII → XC | 8 → 2 | The longest snakes are close to tiny |
+| 3 → 4 | III → IV | 3 → 1 | Eating can leave you as just a head |
+| 8 → 9 → 10 | VIII → IX → X | 4 → 1 → 1 | One snack and you're a single cell |
+| 38 → 40 | XXXVIII → XL | 7 → 1 | Count your way out of a tight spot |
+| 88 → 90 | LXXXVIII → XC | 8 → 1 | The longest snakes are close to tiny |
 | 1888 | MDCCCLXXXVIII | 13 | Longest numeral below the goal |
 | 2021 | MMXXI | 5 | The goal |
 
@@ -378,7 +378,7 @@ These keys are separate from the main game's, so resetting one game's scores nev
 | Layer | What is checked | How |
 |---|---|---|
 | Roman | 1..2021 round-trip through `toRoman`/`fromRoman`; the length table in section 2; no zero; 2021 = MMXXI | `node --test snake2/tests/` |
-| Snake | Growth from the tail; III → IV drops 1 cell (III is 3 long, IV is 2); IV + V relabels; the invariant after every step; cap at 2021 | node, fixed seed |
+| Snake | Growth from the tail; III → IV drops 2 cells (III is 3 long, IV is 1); IV + V relabels; the invariant after every step; cap at 2021 | node, fixed seed |
 | Rules | Wall crash, self crash, body crash, head-on, head swap, tail-leaving cell allowed (but not when growing), bots → I snacks | node, hand-built boards |
 | Bots | Never pick an unsafe move when a safe one exists; reach a snack in an open room; BFS cap respected | node |
 | Browser | The page loads with no console errors; menu → countdown → playing → crash → over; settings persist; the camera stays inside walls | Headless Chromium (as used for v4) |

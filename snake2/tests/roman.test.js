@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./load');
 
 const ctx = load();
-const { toRoman, fromRoman, romanLength, popLabel } = ctx;
+const { toRoman, fromRoman, romanLength, popLabel, numeralTokens } = ctx;
 
 test('round-trips every number from 1 to 2021', () => {
   for (let n = 1; n <= 2021; n++) assert.equal(fromRoman(toRoman(n)), n, 'n=' + n);
@@ -45,4 +45,16 @@ test('popLabel shows the sum and the rewrite', () => {
   assert.equal(popLabel(3, 1, 4), 'III + I → IV');
   assert.equal(popLabel(8, 1, 9), 'VIII + I → IX');
   assert.equal(popLabel(9, 1, 10), 'IX + I → X');
+});
+
+test('subtractive pairs are one ligature token, other symbols are single', () => {
+  const texts = n => JSON.parse(JSON.stringify(numeralTokens(n).map(t => t.text)));
+  assert.deepEqual(texts(4), ['IV']);
+  assert.deepEqual(texts(3), ['I', 'I', 'I']);
+  assert.deepEqual(texts(1994), ['M', 'CM', 'XC', 'IV']);
+  assert.deepEqual(texts(2021), ['M', 'M', 'X', 'X', 'I']);
+  // Tokens always cover every cell of the numeral exactly once.
+  for (let n = 1; n <= 2021; n++) {
+    assert.equal(numeralTokens(n).reduce((sum, t) => sum + t.len, 0), romanLength(n), 'n=' + n);
+  }
 });

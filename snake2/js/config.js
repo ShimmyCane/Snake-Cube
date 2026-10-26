@@ -15,7 +15,7 @@ const CFG2 = {
   COLS: 50, ROWS: 50,          // board including the stone wall ring
   CELL_PX_MIN: 22,             // smallest drawn cell on a phone
   CELL_PX_MAX: 34,             // largest drawn cell on a big screen
-  TICK_MS: 170,                // one step for every snake
+  TICK_MS: 243,                // one step for every snake (30% slower than 170)
   ROUND_MS: 180000,            // Timed mode: 3:00
   GOAL: 2021,                  // MMXXI — the cap and the win
   START_VALUE: 1,              // every snake starts as I

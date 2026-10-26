@@ -40,6 +40,7 @@ The snake stores one integer, `value`. The body is always `toRoman(value)`, one 
 | The numeral gets… | On the field |
 |---|---|
 | longer | Classic growth. The tail stays put one tick per extra symbol, so the body grows out of the tail. |
+| ligature | Subtractive pairs (IV, IX, XL, XC, CD, CM) are one tile spanning two cells, so IV reads as one symbol. |
 | shorter | Collapse. The extra tail cells drop off at once, with a floating pop "III + I → IV". |
 | the same length | The tiles just relabel (IV + V = IX). |
 
@@ -66,7 +67,7 @@ Romans had no zero, so every snake starts at **I** and can never go below it. Th
 |---|---|
 | Board | 50 × 50 cells. The outer ring is stone wall, leaving 48 × 48 cells to play in. |
 | Movement | Up, down, left or right. One cell per tick. You can't reverse into yourself (a 180° turn is ignored). |
-| Speed | One speed for every snake: 170 ms per step. Size never changes it. |
+| Speed | One speed for every snake: 243 ms per step (30% slower than the first build). Size never changes it. |
 | Start | You start as **I** near the middle, facing right. The 3 bots start as **I** in random corners. |
 | Snacks | 20 on the field. When one is eaten, a new one appears on a random free cell. Values come from the snack set (section 5) and never scale up. |
 | Eating | Your head enters a snack's cell: `value += snack value`. |
@@ -227,7 +228,7 @@ A 50 × 50 board on a phone at 390 px wide would make each cell about 7 px, too 
 
 ---
 
-## 10. One tick (every 170 ms, all snakes together)
+## 10. One tick (every 243 ms, all snakes together)
 
 ```
 1. Turns       player: take the next queued turn (ignore 180° reversals)
@@ -361,7 +362,7 @@ These keys are separate from the main game's, so resetting one game's scores nev
 |---|---|---|
 | `COLS`, `ROWS` | 50, 50 | Board including the wall ring |
 | `CELL_PX` | 26 phone · 30 larger | Drawn cell size |
-| `TICK_MS` | 170 | One step for every snake |
+| `TICK_MS` | 243 | One step for every snake |
 | `ROUND_MS` | 180000 | Timed mode length |
 | `GOAL` | 2021 | MMXXI: the cap and the win |
 | `SNACKS_ON_FIELD` | 20 | Snacks kept on the board |

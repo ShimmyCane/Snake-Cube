@@ -28,6 +28,7 @@
   el.innerHTML = `
     <div id="mp-screen-main">
       <h2 style="margin-bottom:8px;text-align:center">FELIX'S<br>SNAKE CUBES</h2>
+      <button class="mp-btn" id="menu-music" style="margin-bottom:8px;padding:8px 18px;font-size:0.7rem">🔊 MUSIC ON</button>
       <div class="stone-wall">
         <button class="stone s1" id="menu-felix" style="--c:#00f5c4">🐍 FELIX</button>
         <button class="stone s2" id="menu-athena" style="--c:#bf5fff">🦉 ATHENA</button>
@@ -140,6 +141,17 @@ function loadPeerJS(cb) {
   s.onload = cb;
   s.onerror = () => { setMPStatus('PeerJS unavailable — solo only'); cb(null); };
   document.head.appendChild(s);
+}
+
+// ── Music: one switch, shown on the start menu and in the in-game settings ──
+function syncMusicUI() {
+  const on = typeof MUS !== 'undefined' && !MUS.muted;
+  const btn = document.getElementById('menu-music');
+  if (btn) btn.textContent = on ? '🔊 MUSIC ON' : '🔇 MUSIC OFF';
+  const chk = document.getElementById('music-chk');
+  if (chk) chk.checked = on;
+  const val = document.getElementById('music-val');
+  if (val) { val.textContent = on ? 'on' : 'off'; val.style.color = on ? '#00f5c4' : '#555570'; }
 }
 
 // ── Screen helpers ──
@@ -264,6 +276,11 @@ function initMPOverlay() {
   document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); });
   document.getElementById('menu-others').addEventListener('click', () => showMPScreen('others'));
   document.getElementById('menu-start').addEventListener('click',  startSelected);
+  document.getElementById('menu-music').addEventListener('click', () => {
+    if (typeof MUS !== 'undefined') MUS.setMuted(!MUS.muted);
+    syncMusicUI();
+  });
+  syncMusicUI();
   document.getElementById('mp-btn-others-back').addEventListener('click', () => showMPScreen('main'));
   renderMenu();
 

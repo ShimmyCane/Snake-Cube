@@ -151,3 +151,24 @@ Answers you gave: head size = typical; the map flip is the texture only (3D obje
 5. **`BOT_START_VAL`.** Checked: nothing references it. Dropped.
 6. **Remove `athena_piano_3`, add a music tracker.** Done: entry removed. `MUSIC.md` lists the tracks in use.
 7. **v4 with a changelog.** Done: `CHANGELOG.md` covers v4.0.0 and reconstructs history from the lessons-learned, process, schematic, and code notes. The repo's git history starts at a single commit, so older entries are reconstructed.
+
+---
+
+## Snake II — Roman numeral snake (plan, 2026-10-26)
+
+The full plan is in `snake2/schematic.html`. Nothing is built yet.
+
+**What you asked for:** a separate sub-game in its own subfolder, sharing assets where it can. It's a classic 2-D grid snake: tight field, solid walls, four directions, everyone at the same speed, cartoon look, one mode (medium, about 3 minutes), probably no skills.
+
+**Core idea:** the snake *is* a number. Its body spells the value in Roman numerals, one symbol per cell. Eating I snacks counts up, and when the body spells something Romans wouldn't write, it collapses: IIII becomes IV and the tail gets shorter. So length is a puzzle. For example, VIII is 4 long but X is 1 long.
+
+**Sharing:** the music player and tracks are shared. The load-error panel and masonry buttons are copied and trimmed. The 3-D engine is not reused; it's built for free 360° movement and powers of 2.
+
+**Open questions** (defaults in brackets):
+1. Field size [18 × 24]
+2. Crashes: 3 lives or one-crash game over [3 lives]
+3. Rivals: 3 bots or solo [3 bots]
+4. MMXXVI: rare instant win, or the goal of a later endless mode [rare win]. Snacks alone reach about CCLXX (270) in 3 minutes.
+5. Snacks: I/V/X mix or only I [mix]
+6. Show the ordinary number under the Roman one [yes, with a toggle]
+7. Round length: 3 or 2 minutes [3]

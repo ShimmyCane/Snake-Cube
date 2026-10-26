@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake II — Schematic</title>
+<style>
+  body { background:#060a10; color:#c8c8d8; font-family:'Courier New',monospace; font-size:0.78rem; padding:24px; line-height:1.6; max-width:980px; }
+  h1 { color:#ffcc00; letter-spacing:3px; font-size:1.1rem; margin-bottom:4px; }
+  h2 { color:#ff6b35; letter-spacing:2px; font-size:0.85rem; margin-top:28px; margin-bottom:6px; border-bottom:1px solid rgba(255,107,53,0.3); padding-bottom:4px; }
+  h3 { color:#ffcc00; font-size:0.78rem; margin-top:14px; margin-bottom:4px; }
+  pre { background:#0c1018; border:1px solid rgba(0,245,196,0.15); border-radius:4px; padding:12px; overflow-x:auto; color:#a8e8d0; font-size:0.72rem; }
+  code { color:#a8e8d0; }
+  table { border-collapse:collapse; width:100%; margin-top:8px; }
+  th { color:#00f5c4; text-align:left; padding:4px 10px; border-bottom:1px solid rgba(0,245,196,0.25); font-size:0.72rem; }
+  td { padding:3px 10px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.72rem; vertical-align:top; }
+  td:first-child { color:#ff6b35; }
+  .note { color:#7a7a95; font-size:0.7rem; font-style:italic; margin-top:4px; }
+  .ask { color:#ffcc00; }
+  .tag { display:inline-block; background:rgba(0,245,196,0.12); color:#00f5c4; border-radius:3px; padding:1px 6px; font-size:0.65rem; margin-left:4px; }
+  .warn { background:rgba(255,107,53,0.1); border-left:3px solid #ff6b35; padding:6px 12px; margin:8px 0; }
+  a { color:#bf5fff; }
+</style>
+</head>
+<body>
+
+<h1>SNAKE II — ROMAN NUMERAL SNAKE · MVP SCHEMATIC</h1>
+<p class="note">Status: plan only, nothing built yet. Items marked <span class="ask">ASK</span> are open questions for you; the plan uses the default shown until you answer. Lives in <code>snake2/</code>, separate from Felix's Snake Cubes.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>1. THE IDEA IN ONE PARAGRAPH</h2>
+<p>A classic 2-D grid snake on a tight, walled field. Your snake <em>is</em> a number, written in Roman numerals, one symbol per body segment. Eat <b>I</b> snacks to count up. When the body spells something Romans would not write, it collapses: <b>IIII</b> snaps into <b>IV</b> and your tail gets shorter. Because a snake's length is the length of its numeral, every snack is a small puzzle: eating one more can make you longer or much shorter. Everyone moves at the same speed, on the grid, in four directions. One mode, three minutes, cartoon look.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>2. THE CORE MECHANIC — THE BODY SPELLS THE NUMBER</h2>
+<pre>
+ value 3        value 4             value 8            value 9         value 10
+ [I][I][I]  +I  [I][V]        ...   [V][I][I][I]  +I   [I][X]    +I    [X]
+ 3 long         2 long  ← collapse  4 long             2 long          1 long
+
+ head ─────────────────▶ tail       the head carries the first symbol;
+                                    new symbols grow from the tail end
+</pre>
+<p>The snake never stores segments as values. It stores one integer, <code>value</code>. The body is always <code>toRoman(value)</code>, one symbol per cell. When the value changes:</p>
+<table>
+  <thead><tr><th>Numeral gets…</th><th>What happens on the field</th></tr></thead>
+  <tbody>
+    <tr><td>longer</td><td>Classic growth: the tail stays put for one tick per extra symbol, so the body grows out of the tail.</td></tr>
+    <tr><td>shorter</td><td>Collapse: the extra tail cells drop off at once, with a "IIII → IV!" pop so kids see the rewrite.</td></tr>
+    <tr><td>same length</td><td>The symbols just relabel (IV + V = IX).</td></tr>
+  </tbody>
+</table>
+
+<h3>Why it is a puzzle (lengths are real, computed)</h3>
+<table>
+  <thead><tr><th>Value</th><th>Numeral</th><th>Length</th><th>Lesson</th></tr></thead>
+  <tbody>
+    <tr><td>3 → 4</td><td>III → IV</td><td>3 → 2</td><td>Eating makes you shorter</td></tr>
+    <tr><td>8 → 9 → 10</td><td>VIII → IX → X</td><td>4 → 2 → 1</td><td>Two snacks and you are a single tile</td></tr>
+    <tr><td>38 → 39 → 40</td><td>XXXVIII → XXXIX → XL</td><td>7 → 5 → 2</td><td>Escape a tight spot by counting to 40</td></tr>
+    <tr><td>88 → 90</td><td>LXXXVIII → XC</td><td>8 → 2</td><td>The longest snakes are one away from tiny</td></tr>
+    <tr><td>1888</td><td>MDCCCLXXXVIII</td><td>13</td><td>Longest numeral up to the cap</td></tr>
+    <tr><td>2026</td><td>MMXXVI</td><td>6</td><td>The cap — this year</td></tr>
+  </tbody>
+</table>
+<p class="note">Romans had no zero, so a snake starts at I and can never be 0. That is a nice fact for kids, and it gives a clean rule: you cannot shrink below I.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>3. RULES (MVP)</h2>
+<table>
+  <thead><tr><th>Rule</th><th>MVP behaviour</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Field</td><td>Fixed grid, 18 × 24 cells, solid stone walls all round. Fills a phone screen in portrait.</td><td><span class="ask">ASK</span> size — tighter (14 × 18) or roomier (22 × 30)?</td></tr>
+    <tr><td>Movement</td><td>Up / down / left / right only. One cell per tick. No 180° reversal.</td><td>Same tick for every snake.</td></tr>
+    <tr><td>Speed</td><td>One speed for everyone: 170 ms per step (medium).</td><td>Does not change with size.</td></tr>
+    <tr><td>Snacks</td><td>5 on the field. Fixed values: <b>I</b> 80%, <b>V</b> 15%, <b>X</b> 5%. They never scale up.</td><td>A new one appears when one is eaten.</td></tr>
+    <tr><td>Snake vs snake</td><td>If your head enters another snake's cell, the bigger number eats the smaller one whole and adds its value. If you are the smaller one, you crash. Equal values: both crash.</td><td>Teaches comparison: is XL bigger than LX?</td></tr>
+    <tr><td>Crash</td><td>Wall, your own body, or a bigger snake. You lose a life and respawn as <b>I</b> after a short pause.</td><td>Moving into the cell your tail is leaving is allowed (classic rule).</td></tr>
+    <tr><td>Lives</td><td>3 lives, shown as <b>III</b>. Lose all three and the game ends.</td><td><span class="ask">ASK</span> or is one crash game over (pure classic)?</td></tr>
+    <tr><td>Round</td><td>3:00, one mode. Score = the biggest number you reached.</td><td>High-score table in its own storage key.</td></tr>
+    <tr><td>Cap</td><td><b>MMXXVI</b> (2026). Your value cannot pass it. Reaching it wins the game at once.</td><td>See the warning below.</td></tr>
+    <tr><td>Bots</td><td>3 rival snakes with Roman names (Marcus, Julia, Livia, Felix…). They respawn as I when they crash.</td><td>Felix is Latin for "lucky".</td></tr>
+    <tr><td>Skills / bonus tiles</td><td>None in the MVP.</td><td>See section 13 for later ideas (hourglass freeze).</td></tr>
+  </tbody>
+</table>
+<div class="warn"><b>Cap vs round length.</b> At 170 ms a 3-minute round is about 1,060 steps. Eating snacks alone gets you to roughly <b>CCLXX</b> (270). MMXXVI is only reachable by eating rival snakes many times. So in the MVP the cap is a ceiling and a rare win, not the normal goal. <span class="ask">ASK</span> Keep it that way, or add an endless mode later where MMXXVI is the goal?</div>
+
+<!-- ─────────────────────────────────── -->
+<h2>4. FOLDER &amp; FILE MAP</h2>
+<pre>
+Snake-Cube/
+  index.html                ← Felix's Snake Cubes (unchanged, except a link to Snake II)
+  music/*.mp4               ← SHARED: Snake II plays the same tracks
+  js/music.js               ← SHARED: loaded from ../js/music.js
+  snake2/
+    index.html              ← page skeleton: HUD, canvas, overlays, script tags, load-error panel
+    schematic.html          ← this file
+    README.md               ← how to run, how to test, where to change things
+    css/
+      snake2.css            ← cartoon styles, menu, HUD, d-pad
+    js/
+      config.js             ← CFG2 (grid, tick, round, snacks, cap, colours) + CFG_AUDIO for music.js
+      roman.js              ← toRoman(), fromRoman(), symbolColour() — pure, no DOM
+      grid.js               ← field size, wall test, occupancy map, free-cell picker
+      snake.js              ← snake model: cells, value, symbols, step, grow, collapse
+      bots.js               ← bot brain: BFS to nearest snack, avoid danger
+      game.js               ← state G2, the tick, snacks, eating, crashes, lives, timer, win/lose
+      render.js             ← 2-D canvas renderer: board, walls, snacks, snakes, pops
+      input.js              ← arrows / WASD, swipe, on-screen d-pad
+      ui.js                 ← start menu, HUD, countdown, game over, win, high scores
+      main.js               ← boot + requestAnimationFrame loop
+    tests/
+      roman.test.js         ← node --test: numeral conversion and lengths
+      snake.test.js         ← node --test: grow / collapse / collision rules
+</pre>
+
+<h3>What is shared, copied, or new</h3>
+<table>
+  <thead><tr><th>Piece</th><th>Decision</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Music player + tracks</td><td>Shared (<code>../js/music.js</code>, <code>../music/</code>)</td><td>Already self-contained; it only needs <code>CFG_AUDIO.FOLDER = '../music/'</code>.</td></tr>
+    <tr><td>Load-error panel</td><td>Copied and trimmed into <code>snake2/index.html</code></td><td>Proven pattern; lists Snake II's own files.</td></tr>
+    <tr><td>Masonry stone buttons</td><td>Copied into <code>snake2.css</code></td><td>Same family look as the main menu. Optional later: move to a shared <code>css/masonry.css</code>.</td></tr>
+    <tr><td>3-D renderer, camera, game-core, weapons, Dad/Athena</td><td>Not used</td><td>Built for float 360° movement and powers of 2. A 2-D grid game is simpler written fresh than adapted.</td></tr>
+    <tr><td>Face / eyes on the head</td><td>Redrawn in 2-D, same personality</td><td>So the two games feel related.</td></tr>
+  </tbody>
+</table>
+<p class="note">Snake II never loads the main game's <code>config.js</code> or <code>game-core.js</code>, so global names cannot collide (lessons-learned #21). Its own globals use a <code>2</code> suffix where a clash would be confusing (<code>G2</code>, <code>CFG2</code>).</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>5. SCRIPT LOAD ORDER</h2>
+<pre>
+1. js/config.js     — CFG2, CFG_AUDIO, SYMBOL_COLOURS
+2. js/roman.js      — toRoman, fromRoman, romanLength
+3. js/grid.js       — GRID, isWall, freeCell, buildOccupancy
+4. js/snake.js      — newSnake2, stepSnake2, setValue, wouldCrash
+5. js/bots.js       — botChooseDir
+6. js/game.js       — G2, startRound, tick, endRound
+7. js/render.js     — canvas, ctx, draw
+8. js/input.js      — key / swipe / d-pad → G2.player.nextDir
+9. js/ui.js         — menu, HUD, overlays, high scores
+10. ../js/music.js  — MUS (shared)
+11. js/main.js      — boot, loop(); starts requestAnimationFrame last
+</pre>
+<p class="note">Plain script tags with one global scope, like the main game. <code>main.js</code> loads last, so nothing calls a function that is not defined yet.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>6. DATA MODEL</h2>
+<pre>
+G2 = {
+  state:     'menu' | 'countdown' | 'playing' | 'paused' | 'over' | 'won',
+  timeLeftMs: 180000,
+  tickAt:    performance.now() of the last step   (for smooth in-between drawing)
+  snakes:    [player, bot1, bot2, bot3],
+  player:    snakes[0],
+  snacks:    [{ c, r, value }],            // value is 1, 5 or 10
+  pops:      [{ c, r, text, at }],          // "IIII → IV!" floating labels
+  best:      highest value reached this round
+}
+
+snake = {
+  name, isPlayer, colour,
+  value:     1,                             // the only source of truth
+  cells:     [{c,r}, …]   head first        // length catches up to the numeral
+  dir:       {dc, dr},  nextDir: {dc, dr},
+  pendingGrow: 0,                           // tail cells still to grow
+  alive, respawnAt, lives (player only)
+}
+
+symbols(snake) = toRoman(snake.value).split('')   // drawn onto cells[0..]
+</pre>
+<p><b>Invariant:</b> after each tick, <code>cells.length + pendingGrow === romanLength(value)</code>. The snake tests check this after every move.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>7. ONE TICK (every 170 ms, all snakes together)</h2>
+<pre>
+1. Directions   player: nextDir from input (ignore reversal) · bots: botChooseDir()
+2. Targets      each live snake's new head cell = head + dir
+3. Resolve      wall            → crash
+                own body        → crash (except the cell the tail leaves this tick)
+                another snake   → bigger value eats the smaller whole; smaller crashes; equal: both crash
+4. Move         unshift new head; pop the tail unless pendingGrow > 0 (then pendingGrow--)
+5. Eat snack    value += snack.value (capped at 2026); spawn a replacement snack
+6. Rewrite      newLen = romanLength(value)
+                  newLen > cells → pendingGrow += difference
+                  newLen < cells → drop tail cells now, add a pop "old → new"
+7. Check        player value == 2026 → 'won' · lives == 0 → 'over' · timer == 0 → 'over'
+</pre>
+<p class="note">All snakes move in one step, so nobody gets a head start from list order. Head-on collisions are decided on the new cells in step 3.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>8. SCREENS (state machine)</h2>
+<pre>
+ menu ──START──▶ countdown (III · II · I · IRE!) ──▶ playing ⇄ paused
+                                                   │
+                                  timer 0 / lives 0 ▼        value 2026 ▼
+                                                 over                   won
+                                                   └───── PLAY AGAIN / MENU ─────┘
+</pre>
+<p class="note">"IRE!" is Latin for "go!". The countdown doubles as a mini lesson.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>9. LOOK &amp; FEEL — CARTOON, STYLISED</h2>
+<table>
+  <thead><tr><th>Element</th><th>Look</th></tr></thead>
+  <tbody>
+    <tr><td>Board</td><td>Warm parchment / marble floor with a faint mosaic grid. Walls are chunky cartoon stone blocks, echoing the masonry menu.</td></tr>
+    <tr><td>Body tiles</td><td>Rounded squares, thick dark outline, one bold serif letter each. Colour by symbol so values read at a glance: I green · V yellow · X orange · L red · C purple · D blue · M gold.</td></tr>
+    <tr><td>Head</td><td>Bigger rounded tile with eyes that look the way it is going; snake colour ring so you can tell who is who.</td></tr>
+    <tr><td>Snacks</td><td>Gold coins stamped with I, V or X, gently bobbing.</td></tr>
+    <tr><td>Collapse</td><td>Dropped tail tiles squash and fade; floating "IIII → IV!" label.</td></tr>
+    <tr><td>Motion</td><td>Movement is on the grid, but drawn eased between cells so it looks smooth, not choppy.</td></tr>
+    <tr><td>HUD</td><td>Your number big in Roman, with the ordinary number underneath (toggle for kids who are learning). Timer, lives (III), best score.</td></tr>
+    <tr><td>Rendering</td><td>Plain 2-D canvas, sharp on high-DPI phones (devicePixelRatio). No WebGL, no images needed for the MVP.</td></tr>
+  </tbody>
+</table>
+
+<!-- ─────────────────────────────────── -->
+<h2>10. CONTROLS</h2>
+<table>
+  <thead><tr><th>Device</th><th>Input</th></tr></thead>
+  <tbody>
+    <tr><td>Keyboard</td><td>Arrows or WASD. P or Esc pauses.</td></tr>
+    <tr><td>Phone</td><td>Swipe anywhere, or a 4-button d-pad under the board (both always on).</td></tr>
+    <tr><td>Rule</td><td>Inputs queue up to 2 turns, so quick "up then left" taps between ticks are not lost.</td></tr>
+  </tbody>
+</table>
+
+<!-- ─────────────────────────────────── -->
+<h2>11. BOTS</h2>
+<pre>
+botChooseDir(bot):
+  safe = the 3 non-reversing moves that do not hit a wall, a body, or a cell
+         a bigger snake's head could reach next tick
+  if a smaller snake's head is within 4 cells → step toward it (hunt)      [stretch]
+  else → BFS on the grid to the nearest snack; take the first step
+  no path → any safe move; no safe move → keep going (it will crash)
+</pre>
+<p class="note">BFS on 18 × 24 = 432 cells is cheap enough to run for every bot on every tick.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>12. CONFIG (CFG2 — js/config.js)</h2>
+<table>
+  <thead><tr><th>Key</th><th>Default</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>COLS / ROWS</td><td>18 / 24</td><td>Field size in cells</td></tr>
+    <tr><td>TICK_MS</td><td>170</td><td>One step for every snake (medium)</td></tr>
+    <tr><td>ROUND_MS</td><td>180000</td><td>3-minute round</td></tr>
+    <tr><td>LIVES</td><td>3</td><td>Player lives</td></tr>
+    <tr><td>RESPAWN_MS</td><td>1500</td><td>Pause before respawning as I</td></tr>
+    <tr><td>SNACKS_ON_FIELD</td><td>5</td><td>Snacks kept on the board</td></tr>
+    <tr><td>SNACK_ODDS</td><td>{1:0.80, 5:0.15, 10:0.05}</td><td>Snack value chances; never scale up</td></tr>
+    <tr><td>BOTS</td><td>3</td><td>Rival snakes</td></tr>
+    <tr><td>CAP</td><td>2026</td><td>MMXXVI — value ceiling and instant win</td></tr>
+    <tr><td>SHOW_ARABIC</td><td>true</td><td>Show the ordinary number under the Roman one</td></tr>
+  </tbody>
+</table>
+
+<!-- ─────────────────────────────────── -->
+<h2>13. NOT IN THE MVP (later ideas)</h2>
+<table>
+  <thead><tr><th>Idea</th><th>Shape</th></tr></thead>
+  <tbody>
+    <tr><td>⏳ Hourglass (freeze)</td><td>Rare tile: rivals freeze for 3 s. Fits the Roman time theme you mentioned.</td></tr>
+    <tr><td>🛡 Scutum (shield)</td><td>Survive one crash.</td></tr>
+    <tr><td>Endless mode</td><td>No timer; the goal is reaching MMXXVI.</td></tr>
+    <tr><td>BCE / CE</td><td>Count down through negative years? You called this too much; parked.</td></tr>
+    <tr><td>Bigger snacks</td><td>L / C coins late in a round, if games feel slow.</td></tr>
+    <tr><td>Sound effects</td><td>Coin, collapse "pop", crash.</td></tr>
+    <tr><td>Shared masonry CSS</td><td>Move the stone styles to <code>css/masonry.css</code> for both games.</td></tr>
+  </tbody>
+</table>
+
+<!-- ─────────────────────────────────── -->
+<h2>14. TESTING</h2>
+<table>
+  <thead><tr><th>Layer</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>Roman maths</td><td><code>node --test snake2/tests/</code>: 1..2026 round-trips through toRoman/fromRoman; the lengths in section 2; no zero; cap.</td></tr>
+    <tr><td>Snake rules</td><td>Node tests on <code>snake.js</code>/<code>game.js</code> with a fixed seed: growth from the tail, IIII→IV collapse drops 2 cells, tail-cell rule, bigger-eats-smaller, equal both crash, wall crash, invariant holds.</td></tr>
+    <tr><td>Browser smoke</td><td>Headless Chromium (as used for v4): page loads with no console errors, menu → countdown → playing, timer counts, game over screen.</td></tr>
+    <tr><td>Phone</td><td>You: swipe and d-pad feel, readability of letters, board fits the screen.</td></tr>
+  </tbody>
+</table>
+<p class="note">roman.js, grid.js and snake.js take no DOM, so node can load them directly. That is why they are separate from game.js and render.js.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>15. EXECUTION PLAN TO MVP</h2>
+<table>
+  <thead><tr><th>Step</th><th>Build</th><th>Done when</th></tr></thead>
+  <tbody>
+    <tr><td>M0 Skeleton</td><td>Folder, index.html with all script tags and the load-error panel, empty board, start menu with START.</td><td>Page loads with no errors; the ℹ panel lists every file as loaded.</td></tr>
+    <tr><td>M1 Roman core</td><td>roman.js + tests.</td><td>1..2026 round-trip; length table matches section 2.</td></tr>
+    <tr><td>M2 Solo snake</td><td>grid.js, snake.js, game.js tick, input; I-only snacks; walls; crash; grow and collapse.</td><td>You can play alone and watch III become IV. Snake tests pass.</td></tr>
+    <tr><td>M3 Cartoon look</td><td>render.js: board, stone walls, letter tiles, face, coins, eased motion, collapse pop.</td><td>Readable on a phone; screenshots reviewed by you.</td></tr>
+    <tr><td>M4 Rivals &amp; round</td><td>bots.js, snake-vs-snake rules, lives, 3:00 timer, V/X snacks, game over, high scores, cap win.</td><td>A full 3-minute round plays start to finish.</td></tr>
+    <tr><td>M5 Polish &amp; wire-in</td><td>Swipe + d-pad, countdown, pause, shared music, README, link from the main game's OTHERS screen, CHANGELOG entry, file map in process.html.</td><td>Browser smoke test clean; your phone bug test.</td></tr>
+  </tbody>
+</table>
+<p class="note">Each step is a working game you can open, so you can redirect after any of them.</p>
+
+<!-- ─────────────────────────────────── -->
+<h2>16. OPEN QUESTIONS</h2>
+<table>
+  <thead><tr><th>#</th><th>Question</th><th>Default until you answer</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Field size: 18 × 24, tighter, or roomier?</td><td>18 × 24</td></tr>
+    <tr><td>2</td><td>Crashes: 3 lives (III), or classic one-crash game over?</td><td>3 lives</td></tr>
+    <tr><td>3</td><td>Rivals: 3 bots, or start solo like classic snake?</td><td>3 bots</td></tr>
+    <tr><td>4</td><td>MMXXVI: rare instant win (as planned), or the goal of a later endless mode?</td><td>Rare instant win</td></tr>
+    <tr><td>5</td><td>Snack mix: I 80% · V 15% · X 5%, or only I?</td><td>The mix</td></tr>
+    <tr><td>6</td><td>Show the ordinary number under the Roman one by default?</td><td>Yes, with a toggle</td></tr>
+    <tr><td>7</td><td>Round length: 3 minutes (as you said), or 2?</td><td>3 minutes</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>

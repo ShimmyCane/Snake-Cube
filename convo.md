@@ -156,7 +156,7 @@ Answers you gave: head size = typical; the map flip is the texture only (3D obje
 
 ## Snake II — Roman numeral snake (plan, 2026-10-26)
 
-The full plan is in `snake2/schematic.html`. Nothing is built yet.
+The first draft was `snake2/schematic.html`. It has been replaced by `snake2/schematic_snake2.md` (see below).
 
 **What you asked for:** a separate sub-game in its own subfolder, sharing assets where it can. It's a classic 2-D grid snake: tight field, solid walls, four directions, everyone at the same speed, cartoon look, one mode (medium, about 3 minutes), probably no skills.
 
@@ -172,3 +172,15 @@ The full plan is in `snake2/schematic.html`. Nothing is built yet.
 5. Snacks: I/V/X mix or only I [mix]
 6. Show the ordinary number under the Roman one [yes, with a toggle]
 7. Round length: 3 or 2 minutes [3]
+
+### Your answers (2026-10-26)
+
+1. **Field:** 50 × 50. The camera follows you and a minimap shows the whole board, since 50 cells won't fit a phone at a readable size.
+2. **Crashes:** one crash is game over.
+3. **Bots:** 3 bots, which you can't eat. Touching any snake is a crash. Crashed bots turn into I snacks and respawn.
+4. **Goal:** **MMXXI** (2021), Felix's birth year.
+5. **Snacks:** Classic I·V·X by default. A snack-set setting (Extended, Imperial) speeds things up. Simulated pace: Classic reaches about CCXII in 3:00, and Endless takes about 28 min with Classic or about 7½ min with Extended.
+6. **Ordinary numbers:** hidden by default, with a toggle in settings.
+7. **Modes:** Timed (3:00) plus Endless (until MMXXI).
+
+The full plan is in `snake2/schematic_snake2.md`. It still has four small open questions (section 22), each with a default.

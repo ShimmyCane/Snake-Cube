@@ -21,11 +21,11 @@ test('a new snake is I: one cell, invariant holds', () => {
   assert.ok(invariant(s));
 });
 
-test('IV collapse: III eats I and the tail drops one cell at once', () => {
+test('IV collapse: III eats I and becomes a lone head, IV, with no tail', () => {
   const s = snakeWith(3, 3);
   const collapse = setValue(s, 4);
-  assert.deepEqual(plain(collapse), { from: 3, to: 4, dropped: 1 });
-  assert.equal(s.cells.length, 2);
+  assert.deepEqual(plain(collapse), { from: 3, to: 4, dropped: 2 });
+  assert.equal(s.cells.length, 1);
   assert.equal(s.pendingGrow, 0);
   assert.ok(invariant(s));
 });
@@ -84,4 +84,18 @@ test('queueTurn refuses a reversal and a repeat, and caps the queue', () => {
   assert.equal(queueTurn(s, down), false, 'queue full (only 2 turns allowed)');
   takeTurn(s);
   assert.deepEqual(plain(s.dir), { dc: 0, dr: -1 });
+});
+
+test('the head is part of the number: XX is head X + tail X, VI is V then I', () => {
+  const twenty = snakeWith(20, 2);
+  assert.equal(twenty.cells.length, 2);
+  assert.equal(ctx.symbolAt(twenty, 0), 'X');
+  assert.equal(ctx.symbolAt(twenty, 1), 'X');
+  const six = snakeWith(6, 2);
+  assert.equal(ctx.symbolAt(six, 0), 'V');
+  assert.equal(ctx.symbolAt(six, 1), 'I');
+  const four = snakeWith(4, 1);
+  assert.equal(four.cells.length, 1, 'four is only a head');
+  assert.equal(ctx.symbolAt(four, 0), 'IV');
+  assert.ok(invariant(four));
 });

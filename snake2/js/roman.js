@@ -35,9 +35,10 @@ function fromRoman(s) {
   return total;
 }
 
-// Number of body cells a snake needs for this value.
+// Number of body cells a snake needs for this value: one per symbol, head included.
+// A subtractive pair (IV, IX, XL, XC, CD, CM) is one symbol, so 4 is a single cell.
 function romanLength(n) {
-  return toRoman(n).length;
+  return numeralTokens(n).length;
 }
 
 // The label shown when a numeral collapses, e.g. "III + I → IV".
@@ -49,9 +50,8 @@ function popLabel(from, eaten, to) {
 // Subtractive pairs are read as one symbol: IV is one ligature, not I then V.
 const LIGATURE_PAIRS = ['IV', 'IX', 'XL', 'XC', 'CD', 'CM'];
 
-// Split a value's numeral into drawable tokens, one per body symbol.
-// A ligature token spans two cells; every other token spans one.
-// Returns [{ start, len, text }] with start = index of the first cell.
+// Split a value's numeral into symbols, one per body cell (index 0 is the head).
+// Returns [{ text }] where text is a single letter, or a two-letter ligature.
 function numeralTokens(n) {
   const num = toRoman(n);
   const tokens = [];
@@ -59,10 +59,10 @@ function numeralTokens(n) {
   while (i < num.length) {
     const pair = num.substr(i, 2);
     if (pair.length === 2 && LIGATURE_PAIRS.includes(pair)) {
-      tokens.push({ start: i, len: 2, text: pair });
+      tokens.push({ text: pair });
       i += 2;
     } else {
-      tokens.push({ start: i, len: 1, text: num[i] });
+      tokens.push({ text: num[i] });
       i += 1;
     }
   }

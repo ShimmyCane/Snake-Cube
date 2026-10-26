@@ -20,8 +20,8 @@ test('known numerals, including the goal and Felix\'s birth year', () => {
   assert.equal(toRoman(2021), 'MMXXI');
 });
 
-test('numeral lengths match the schematic table', () => {
-  const table = { 3: 3, 4: 2, 8: 4, 9: 2, 10: 1, 38: 7, 40: 2, 88: 8, 90: 2, 1888: 13, 2021: 5 };
+test('body length is the number of symbols; IV, IX, XL, XC, CD, CM count as one', () => {
+  const table = { 3: 3, 4: 1, 6: 2, 8: 4, 9: 1, 10: 1, 20: 2, 38: 7, 39: 4, 40: 1, 88: 8, 90: 1, 1888: 13, 1994: 4, 2021: 5 };
   for (const [n, len] of Object.entries(table)) assert.equal(romanLength(Number(n)), len, 'n=' + n);
 });
 
@@ -53,8 +53,8 @@ test('subtractive pairs are one ligature token, other symbols are single', () =>
   assert.deepEqual(texts(3), ['I', 'I', 'I']);
   assert.deepEqual(texts(1994), ['M', 'CM', 'XC', 'IV']);
   assert.deepEqual(texts(2021), ['M', 'M', 'X', 'X', 'I']);
-  // Tokens always cover every cell of the numeral exactly once.
+  // One token per body cell, so the token count is the body length.
   for (let n = 1; n <= 2021; n++) {
-    assert.equal(numeralTokens(n).reduce((sum, t) => sum + t.len, 0), romanLength(n), 'n=' + n);
+    assert.equal(numeralTokens(n).length, romanLength(n), 'n=' + n);
   }
 });

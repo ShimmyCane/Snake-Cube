@@ -43,7 +43,7 @@ test('eating a I snack grows the body to II', () => {
   assert.ok(invariant(G.player));
 });
 
-test('III eating I collapses to IV: body drops a cell and a collapse event fires', () => {
+test('III eating I collapses to IV: the body shrinks to a lone head and a collapse event fires', () => {
   const G = createGame({ seed: 3, mode: 'endless' });
   G.player.value = 3;
   G.player.cells = [{ c: 25, r: 25 }, { c: 24, r: 25 }, { c: 23, r: 25 }];
@@ -52,7 +52,7 @@ test('III eating I collapses to IV: body drops a cell and a collapse event fires
   const events = stepGame(G, 0);
   assert.ok(events.some(e => e.type === 'collapse' && e.from === 3 && e.to === 4));
   assert.equal(G.player.value, 4);
-  assert.equal(G.player.cells.length, 2);
+  assert.equal(G.player.cells.length, 1);
   assert.ok(invariant(G.player));
   assert.ok(G.pops.some(p => p.text === 'III + I → IV'), 'pop label');
 });

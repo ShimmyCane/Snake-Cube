@@ -33,7 +33,8 @@ function snakeTail(s) {
 
 // The numeral symbol drawn on body cell i (0 = head).
 function symbolAt(s, i) {
-  return toRoman(s.value)[i] || '';
+  const tok = numeralTokens(s.value)[i];
+  return tok ? tok.text : '';
 }
 
 // Set a new value and rewrite the body to match the numeral.

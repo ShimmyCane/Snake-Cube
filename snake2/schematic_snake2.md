@@ -2,7 +2,7 @@
 
 A classic 2-D grid snake where your snake **is** a number, written in Roman numerals.
 
-- **Status:** plan only. Nothing is built yet.
+- **Status:** built (M0–M5). Code lives in `snake2/`; see `snake2/README.md` for how to run and test it.
 - **Folder:** `snake2/`, separate from Felix's Snake Cubes.
 - **Source of truth:** this file. It replaces the earlier `schematic.html` draft.
 
@@ -40,7 +40,7 @@ The snake stores one integer, `value`. The body is always `toRoman(value)`, one 
 | The numeral gets… | On the field |
 |---|---|
 | longer | Classic growth. The tail stays put one tick per extra symbol, so the body grows out of the tail. |
-| shorter | Collapse. The extra tail cells drop off at once, with a floating "IIII → IV!" pop. |
+| shorter | Collapse. The extra tail cells drop off at once, with a floating pop "III + I → IV". |
 | the same length | The tiles just relabel (IV + V = IX). |
 
 ### Why it's a puzzle
@@ -260,7 +260,7 @@ G2 = {
   snakes:     [player, bot1, bot2, bot3],
   player,
   snacks:     [{ c, r, value }],
-  pops:       [{ c, r, text, at }], // "IIII → IV!"
+  pops:       [{ c, r, text, at }], // "III + I → IV"
   best,                             // highest value this run
   seed,                             // random seed, so tests and replays are repeatable
 }
@@ -310,7 +310,7 @@ botChooseDir(bot, board):
 | Symbol colours | I green · V yellow · X orange · L red · C purple · D blue · M gold |
 | Snake identity | Each snake's head has its own coloured ring and eyes; your ring is teal, like the main game |
 | Snacks | Gold coins stamped with the letter, gently bobbing |
-| Collapse | Dropped tail tiles squash and fade; a floating "IIII → IV!" |
+| Collapse | Dropped tail tiles squash and fade; a floating "III + I → IV" |
 | Motion | Steps on the grid, but drawn eased between cells so it reads smoothly |
 | Crash | A puff and a short screen shake |
 | Win | Laurel wreath and "MMXXI — FELIX!" banner |
@@ -377,7 +377,7 @@ These keys are separate from the main game's, so resetting one game's scores nev
 | Layer | What is checked | How |
 |---|---|---|
 | Roman | 1..2021 round-trip through `toRoman`/`fromRoman`; the length table in section 2; no zero; 2021 = MMXXI | `node --test snake2/tests/` |
-| Snake | Growth from the tail; IIII → IV drops 2 cells; IV + V relabels; the invariant after every step; cap at 2021 | node, fixed seed |
+| Snake | Growth from the tail; III → IV drops 1 cell (III is 3 long, IV is 2); IV + V relabels; the invariant after every step; cap at 2021 | node, fixed seed |
 | Rules | Wall crash, self crash, body crash, head-on, head swap, tail-leaving cell allowed (but not when growing), bots → I snacks | node, hand-built boards |
 | Bots | Never pick an unsafe move when a safe one exists; reach a snack in an open room; BFS cap respected | node |
 | Browser | The page loads with no console errors; menu → countdown → playing → crash → over; settings persist; the camera stays inside walls | Headless Chromium (as used for v4) |

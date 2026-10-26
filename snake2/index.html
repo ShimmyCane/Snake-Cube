@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Snake II · Roman Numerals</title>
+  <link rel="stylesheet" href="css/snake2.css">
+</head>
+<body>
+
+<!-- ── Board and HUD (shown while playing) ── -->
+<canvas id="board"></canvas>
+<canvas id="minimap"></canvas>
+
+<div id="hud" class="hud hidden">
+  <div class="hud-left">
+    <div class="hud-label" id="v-mode">TIMED</div>
+    <div class="hud-numeral" id="v-numeral">I</div>
+    <div class="hud-arabic hidden" id="v-arabic"></div>
+  </div>
+  <div class="hud-right">
+    <div class="hud-timer" id="v-timer">3:00</div>
+    <div class="hud-best">best <span id="v-best">I</span></div>
+    <button class="hud-btn" id="btn-pause" aria-label="Pause">II</button>
+  </div>
+</div>
+
+<div id="flash" class="flash hidden"></div>
+
+<div id="dpad" class="dpad hidden" aria-label="Turn controls">
+  <button class="dpad-btn dpad-up" data-dir="up" aria-label="Up">▲</button>
+  <button class="dpad-btn dpad-left" data-dir="left" aria-label="Left">◀</button>
+  <button class="dpad-btn dpad-right" data-dir="right" aria-label="Right">▶</button>
+  <button class="dpad-btn dpad-down" data-dir="down" aria-label="Down">▼</button>
+</div>
+
+<!-- ── Start menu ── -->
+<section id="s-menu" class="screen hidden">
+  <h1 class="title">SNAKE II</h1>
+  <p class="subtitle">Count with the Romans</p>
+  <div class="stone-wall menu-wall">
+    <button class="stone s1" id="btn-timed" style="--c:#00b894">TIMED<br><small>3:00</small></button>
+    <button class="stone s2" id="btn-endless" style="--c:#6c5ce7">ENDLESS<br><small>until MMXXI</small></button>
+  </div>
+  <button class="link-btn" id="btn-settings">⚙ Settings</button>
+  <div class="best-box">
+    <div class="best-title">Best · timed</div>
+    <div id="best-timed" class="best-list"></div>
+    <div class="best-title">Best · endless</div>
+    <div id="best-endless" class="best-list"></div>
+  </div>
+  <a class="link-btn" href="../index.html">← Felix's Snake Cubes</a>
+</section>
+
+<!-- ── Settings ── -->
+<section id="s-settings" class="screen hidden">
+  <h2 class="title small">Settings</h2>
+  <label class="row"><span>Show numbers</span><input type="checkbox" id="set-numbers"></label>
+  <div class="row col">
+    <span>Snack set</span>
+    <div class="seg">
+      <button data-snack="classic">Classic</button>
+      <button data-snack="extended">Extended</button>
+      <button data-snack="imperial">Imperial</button>
+    </div>
+    <small class="hint">Classic is I · V · X. Extended and Imperial add bigger coins, so Endless is quicker.</small>
+  </div>
+  <label class="row"><span>Music</span><input type="checkbox" id="set-music"></label>
+  <label class="row"><span>Start-of-round hint</span><input type="checkbox" id="set-hint"></label>
+  <button class="link-btn" id="btn-settings-back">← Back</button>
+</section>
+
+<!-- ── Countdown ── -->
+<section id="s-count" class="screen overlay hidden">
+  <div id="count-text" class="count-text">III</div>
+</section>
+
+<!-- ── Pause ── -->
+<section id="s-pause" class="screen overlay hidden">
+  <h2 class="title small">Paused</h2>
+  <button class="stone s3" id="btn-resume">RESUME</button>
+  <button class="link-btn" id="btn-quit">Quit to menu</button>
+</section>
+
+<!-- ── Game over / win ── -->
+<section id="s-over" class="screen overlay hidden">
+  <div class="wreath hidden" id="over-wreath">🏛</div>
+  <h2 class="title small" id="over-title">GAME OVER</h2>
+  <div class="over-score" id="over-score"></div>
+  <div class="over-detail" id="over-detail"></div>
+  <div class="over-best" id="over-best"></div>
+  <button class="stone s2" id="btn-again">PLAY AGAIN</button>
+  <button class="link-btn" id="btn-menu">Menu</button>
+</section>
+
+<!-- ── Load check: every file the page needs (plan section 19, M0) ── -->
+<div id="load-error" class="load-error hidden"></div>
+<script>
+  // Shown only if a script failed to load or a global is missing.
+  window.addEventListener('DOMContentLoaded', function () {
+    var needed = ['CFG2', 'toRoman', 'createGame', 'stepGame', 'renderBoard', 'updateCamera', 'installInput', 'loadSettings', 'MUS'];
+    var missing = needed.filter(function (name) {
+      try { return eval('typeof ' + name) === 'undefined'; } catch (e) { return true; }
+    });
+    if (missing.length) {
+      var box = document.getElementById('load-error');
+      box.textContent = 'Snake II could not start. Missing: ' + missing.join(', ') +
+        '. Check that js/ and ../js/music.js are next to this page, and serve it over http (not file://).';
+      box.classList.remove('hidden');
+    }
+  });
+</script>
+
+<script src="js/config.js"></script>
+<script src="js/roman.js"></script>
+<script src="js/grid.js"></script>
+<script src="js/snake.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/bots.js"></script>
+<script src="js/game.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script src="../js/music.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

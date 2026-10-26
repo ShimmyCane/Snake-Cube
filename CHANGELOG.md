@@ -6,6 +6,18 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Snake II (new sub-game)
+
+A separate Roman-numeral grid snake in `snake2/`, linked from Felix's OTHERS screen. It shares only the music player and tracks with the main game.
+
+- The body spells the snake's value in Roman numerals. Eating coins counts up, and an invalid numeral collapses (`III + I → IV`).
+- Timed (3:00) and Endless modes, goal MMXXI (2021), one crash ends the round.
+- Three bots you can't eat. A crashed bot's body becomes I coins.
+- Snack sets Classic / Extended / Imperial, a show-numbers toggle, and saved best scores.
+- 36 node tests for the numeral maths, snake growth and collapse, collisions, bots, and random play.
+
+---
+
 ## v4.1.0 — 2026-10-26
 
 ### Action buttons

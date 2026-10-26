@@ -184,3 +184,11 @@ The first draft was `snake2/schematic.html`. It has been replaced by `snake2/sch
 7. **Modes:** Timed (3:00) plus Endless (until MMXXI).
 
 The full plan is in `snake2/schematic_snake2.md`. It still has four small open questions (section 22), each with a default.
+
+### Snake II — built (M0–M5)
+
+- Code is in `snake2/`, with `snake2/README.md` on how to run and test it.
+- 36 node tests pass. Headless Chromium runs of the menu, a round, pause (button and P key), settings, a collapse and a wall crash show no console errors.
+- The main game's OTHERS screen has a "Snake II" link.
+- Two corrections to the schematic: a III → IV collapse drops one cell (III is 3 long, IV is 2), not two. The pop label is `III + I → IV`, which shows the sum and the rewrite.
+- Still untested: on a real phone, the feel of swipes and the d-pad, and the bot wreck balance over full rounds.

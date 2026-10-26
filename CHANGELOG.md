@@ -14,7 +14,9 @@ A separate Roman-numeral grid snake in `snake2/`, linked from Felix's OTHERS scr
 - Timed (3:00) and Endless modes, goal MMXXI (2021), one crash ends the round.
 - Three bots you can't eat. A crashed bot's body becomes I coins.
 - Snack sets Classic / Extended / Imperial, a show-numbers toggle, and saved best scores.
-- 36 node tests for the numeral maths, snake growth and collapse, collisions, bots, and random play.
+- IV, IX, XL, XC, CD and CM are drawn as one ligature tile across two cells.
+- The tick is 243 ms, 30% slower than the first build.
+- 37 node tests for the numeral maths, snake growth and collapse, collisions, bots, and random play.
 
 ---
 

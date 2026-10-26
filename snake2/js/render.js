@@ -83,36 +83,57 @@ function drawFace(ctx, cx, cy, size, dir) {
   }
 }
 
-function drawSnake(ctx, G, s, cam, cellPx, t) {
-  // Tail first, so the head is drawn on top.
-  for (let i = s.cells.length - 1; i >= 0; i--) {
-    const p = cellPoint(s, i, t);
-    const cx = (p.c + 0.5 - cam.x) * cellPx;
-    const cy = (p.r + 0.5 - cam.y) * cellPx;
-    const sym = symbolAt(s, i);
-    const size = cellPx * (i === 0 ? 0.98 : 0.9);
-    const fill = SYMBOL_COLOURS[sym] || '#999999';
-    ctx.lineWidth = i === 0 ? 3 : 2;
-    ctx.strokeStyle = INK;
-    ctx.fillStyle = fill;
+// Colour for a ligature: the colour of its first symbol (IV is green like I).
+function ligatureColour(text) {
+  return SYMBOL_COLOURS[text[0]] || '#999999';
+}
+
+// Draw one body token. A ligature covers two cells with one rounded tile.
+function drawToken(ctx, s, tok, cam, cellPx, t, isHead, dir) {
+  const a = cellPoint(s, tok.start, t);
+  const b = cellPoint(s, tok.start + tok.len - 1, t);
+  const x0 = Math.min(a.c, b.c) + 0.5, x1 = Math.max(a.c, b.c) + 0.5;
+  const y0 = Math.min(a.r, b.r) + 0.5, y1 = Math.max(a.r, b.r) + 0.5;
+  const scale = isHead ? 0.98 : 0.9;
+  const size = cellPx * scale;
+  // Centre of the token, in screen pixels, and its box.
+  const cx = ((x0 + x1) / 2 - cam.x) * cellPx;
+  const cy = ((y0 + y1) / 2 - cam.y) * cellPx;
+  const w = (x1 - x0) * cellPx + size;
+  const h = (y1 - y0) * cellPx + size;
+  const isLig = tok.len === 2;
+  const fill = isLig ? ligatureColour(tok.text) : (SYMBOL_COLOURS[tok.text] || '#999999');
+
+  if (isHead) {
+    ctx.strokeStyle = s.colour;
+    ctx.lineWidth = Math.max(3, cellPx * 0.12);
     ctx.beginPath();
-    ctx.roundRect(cx - size / 2, cy - size / 2, size, size, size * 0.25);
-    ctx.fill();
+    ctx.roundRect(cx - w / 2 - 2, cy - h / 2 - 2, w + 4, h + 4, size * 0.3);
     ctx.stroke();
-    if (i === 0) {
-      // Coloured ring: tells the head's owner apart from the others
-      ctx.strokeStyle = s.colour;
-      ctx.lineWidth = Math.max(3, cellPx * 0.12);
-      ctx.beginPath();
-      ctx.roundRect(cx - size / 2 - 2, cy - size / 2 - 2, size + 4, size + 4, size * 0.3);
-      ctx.stroke();
-    }
-    ctx.fillStyle = sym === 'I' || sym === 'V' || sym === 'M' ? INK : '#ffffff';
-    ctx.font = `bold ${Math.round(cellPx * 0.55)}px Georgia, serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(sym, cx, cy + 1);
-    if (i === 0) drawFace(ctx, cx, cy, size, s.dir);
+  }
+  ctx.lineWidth = isHead ? 3 : 2;
+  ctx.strokeStyle = INK;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(w, h) * 0.25);
+  ctx.fill();
+  ctx.stroke();
+
+  const dark = tok.text === 'I' || tok.text === 'V' || tok.text === 'M' || tok.text === 'IV' || tok.text === 'IX';
+  ctx.fillStyle = dark ? INK : '#ffffff';
+  ctx.font = `bold ${Math.round(cellPx * (isLig ? 0.42 : 0.55))}px Georgia, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tok.text, cx, cy + 1);
+  if (isHead) drawFace(ctx, cx, cy, size, dir);
+}
+
+function drawSnake(ctx, G, s, cam, cellPx, t) {
+  // Tokens are drawn tail first, so the head sits on top.
+  const tokens = numeralTokens(s.value).filter(tok => tok.start + tok.len <= s.cells.length);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const tok = tokens[i];
+    drawToken(ctx, s, tok, cam, cellPx, t, tok.start === 0, s.dir);
   }
 }
 

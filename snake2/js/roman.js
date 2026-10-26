@@ -45,3 +45,26 @@ function romanLength(n) {
 function popLabel(from, eaten, to) {
   return toRoman(from) + ' + ' + toRoman(eaten) + ' → ' + toRoman(to);
 }
+
+// Subtractive pairs are read as one symbol: IV is one ligature, not I then V.
+const LIGATURE_PAIRS = ['IV', 'IX', 'XL', 'XC', 'CD', 'CM'];
+
+// Split a value's numeral into drawable tokens, one per body symbol.
+// A ligature token spans two cells; every other token spans one.
+// Returns [{ start, len, text }] with start = index of the first cell.
+function numeralTokens(n) {
+  const num = toRoman(n);
+  const tokens = [];
+  let i = 0;
+  while (i < num.length) {
+    const pair = num.substr(i, 2);
+    if (pair.length === 2 && LIGATURE_PAIRS.includes(pair)) {
+      tokens.push({ start: i, len: 2, text: pair });
+      i += 2;
+    } else {
+      tokens.push({ start: i, len: 1, text: num[i] });
+      i += 1;
+    }
+  }
+  return tokens;
+}

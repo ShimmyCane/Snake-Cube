@@ -172,8 +172,7 @@ Shortcuts: S=select T=tree B=building R=road E=erase Del=delete Esc=cancel
     <tr><td>WORLD_DENSITY</td><td>config.js</td><td>Scaling factor for bot counts</td></tr>
     <tr><td>EXPERT_MODE</td><td>config.js</td><td>Boolean — enables harder bots</td></tr>
     <tr><td>HOOK_ENABLED</td><td>config.js</td><td>Boolean — enables hook weapon</td></tr>
-    <tr><td>TAILBULLET_ENABLED</td><td>config.js</td><td>Boolean — enables tail bullet weapon</td></tr>
-    <tr><td>RADAR_ALWAYS_ON</td><td>config.js</td><td>Boolean — radar always visible</td></tr>
+        <tr><td>RADAR_ALWAYS_ON</td><td>config.js</td><td>Boolean — radar always visible</td></tr>
     <tr><td>BONUS_SIZE_MULT</td><td>config.js</td><td>Size multiplier for special food orbs</td></tr>
     <tr><td>DENSITY_MULT</td><td>config.js</td><td>Runtime density adjustment from slider</td></tr>
     <tr><td>VALS</td><td>config.js</td><td>Array of valid tile values [2,4,8,…,131072]</td></tr>
@@ -248,6 +247,10 @@ Shortcuts: S=select T=tree B=building R=road E=erase Del=delete Esc=cancel
     <tr><td>DOMINANCE_FOOD_MULT</td><td>2</td><td>Snack batch multiplier while dominant</td></tr>
     <tr><td>CLOCK_INTERVAL_MS</td><td>40000</td><td>Interval between clock bonus tiles (⏱)</td></tr>
     <tr><td>CLOCK_BONUS_SEC</td><td>30</td><td>Time added to the round when a clock tile is collected</td></tr>
+    <tr><td>BOMB_COOLDOWN_MS</td><td>8000</td><td>Tail bomb cooldown (B key / 💣 button)</td></tr>
+    <tr><td>BOMB_TRIGGER_CELLS</td><td>3.0</td><td>Rival head this close to a bomb starts the fuse</td></tr>
+    <tr><td>BOMB_FUSE_MS</td><td>1000</td><td>Blinking warning before a tail bomb blasts</td></tr>
+    <tr><td>BOMB_BLAST_CELLS</td><td>3.5</td><td>Blast radius; rival body inside it is shredded, heads are immune</td></tr>
   </tbody>
 </table>
 

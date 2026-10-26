@@ -674,8 +674,8 @@ DAD.setMirror = function(on) {
 //  mission before the next one starts.
 // ══════════════════════════════════════════════════════════════════════
 
-const DAD_SKILL_ORDER = ['hook', 'tail', 'burst', 'vacuum'];
-const DAD_SKILL_LABEL = { hook: 'HOOK', tail: 'TAIL BULLET', burst: 'BURST', vacuum: 'VACUUM' };
+const DAD_SKILL_ORDER = ['hook', 'tail', 'bomb', 'burst', 'vacuum'];
+const DAD_SKILL_LABEL = { hook: 'HOOK', tail: 'TAIL BULLET', bomb: 'TAIL BOMB', burst: 'BURST', vacuum: 'VACUUM' };
 
 const CFG_DAD_MISSION = {
   REACH_RADIUS:  2.5,     // cells — how close the head must get to the target
@@ -691,23 +691,19 @@ const CFG_DAD_MISSION = {
 function _dadAllUnlocked() { return DAD_SKILL_ORDER.every(s => DAD.skills[s]); }
 
 function _dadResetProgress() {
-  DAD.skills = { hook: false, tail: false, burst: false, vacuum: false };
+  DAD.skills = { hook: false, tail: false, bomb: false, burst: false, vacuum: false };
   DAD.mission = null;
   DAD.missionNum = 0;
   DAD._pauseLeftMs = 0;   // first mission starts straight away
   DAD._lastTickAt = 0;
-  TAILBULLET_ENABLED = false;
-  updateHookVisibility();
-  updateTailBulletVisibility();
+  updateActionButtons();
 }
 
 function _dadUnlockNextSkill() {
   const next = DAD_SKILL_ORDER.find(s => !DAD.skills[s]);
   if (!next) return;
   DAD.skills[next] = true;
-  if (next === 'tail') TAILBULLET_ENABLED = true;
-  updateHookVisibility();
-  updateTailBulletVisibility();
+  updateActionButtons();
   showFlash('SKILL UNLOCKED · ' + DAD_SKILL_LABEL[next], '#22aaff');
 }
 

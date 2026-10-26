@@ -14,6 +14,7 @@
   jab.innerHTML = `
     <button class="joy-btn" id="joy-hook-btn" title="Hook">🪝<div class="joy-btn-cd" id="joy-hook-cd"></div></button>
     <button class="joy-btn" id="joy-tailbullet-btn" title="TailBullet">🏹<div class="joy-btn-cd" id="joy-tailbullet-cd"></div></button>
+    <button class="joy-btn" id="joy-bomb-btn" title="Tail Bomb (B)">💣<div class="joy-btn-cd" id="joy-bomb-cd"></div></button>
     <button class="joy-btn" id="joy-boost-btn" title="Burst">⚡<div class="joy-btn-cd" id="joy-boost-cd"></div></button>`;
   document.body.appendChild(jab);
 })();
@@ -67,6 +68,10 @@ document.addEventListener('keydown', e => {
   if((e.key === 'h' || e.key === 'H') && playerHookOn()) {
     e.preventDefault();
     firePlayerHook();
+  }
+  if((e.key === 'b' || e.key === 'B') && G && G.running) {
+    e.preventDefault();
+    fireTailBomb();
   }
   if((e.key === 'j' || e.key === 'J') && typeof ATHENA !== 'undefined' && ATHENA.active) {
     e.preventDefault();
@@ -194,25 +199,34 @@ function setCtrlMode(mode) {
   const bl = document.getElementById('burst-label');
   if(bb) bb.style.opacity = mode === 'joystick' ? '0' : '1';
   if(bl) bl.style.opacity = mode === 'joystick' ? '0' : '1';
+  if(G && G.running) showJoystickUI(true);   // switch the pad and buttons on or off mid-game
 }
 
-function updateHookVisibility() {
-  const btn = document.getElementById('joy-hook-btn');
-  if(btn) btn.classList.toggle('hidden', !playerHookOn());
+// Action buttons show in every control mode. Outside Dad's mode they are always live;
+// in Dad's mode a locked skill stays visible but dimmed until a mission unlocks it.
+function setActionBtn(id, visible, locked) {
+  const b = document.getElementById(id);
+  if(!b) return;
+  b.classList.toggle('hidden', !visible);
+  b.classList.toggle('locked', !!locked);
 }
-
-function updateTailBulletVisibility() {
-  const btn = document.getElementById('joy-tailbullet-btn');
-  if(btn) btn.classList.toggle('hidden', !TAILBULLET_ENABLED);
+function updateActionButtons() {
+  const dad = typeof DAD !== 'undefined' && DAD.active;
+  setActionBtn('joy-hook-btn',      dad || HOOK_ENABLED, dad && !DAD.skills.hook);
+  setActionBtn('joy-tailbullet-btn', true,               dad && !DAD.skills.tail);
+  setActionBtn('joy-bomb-btn',       true,               dad && !DAD.skills.bomb);
+  setActionBtn('joy-boost-btn',      true,               dad && !DAD.skills.burst);
 }
+function updateHookVisibility() { updateActionButtons(); }
+function updateTailBulletVisibility() { updateActionButtons(); }
 
 function showJoystickUI(show) {
   const jz  = document.getElementById('joy-zone');
   const jab = document.getElementById('joy-action-btns');
-  const visible = show && CTRL_MODE === 'joystick';
-  if(jz)  jz.classList.toggle('hidden', !visible);
-  if(jab) jab.classList.toggle('hidden', !visible);
-  updateHookVisibility();
+  // The pad only exists in joystick mode; the action buttons exist in both modes
+  if(jz)  jz.classList.toggle('hidden', !(show && CTRL_MODE === 'joystick'));
+  if(jab) jab.classList.toggle('hidden', !show);
+  updateActionButtons();
 }
 
 // ── Joystick state ──
@@ -269,8 +283,11 @@ function initJoystickHandlers() {
   document.getElementById('joy-hook-btn').addEventListener('touchstart', e => {
     e.preventDefault(); firePlayerHook();
   }, { passive: false });
-    document.getElementById('joy-tailbullet-btn').addEventListener('touchstart', e => {
+  document.getElementById('joy-tailbullet-btn').addEventListener('touchstart', e => {
     e.preventDefault(); fireTailBullet();
+  }, { passive: false });
+  document.getElementById('joy-bomb-btn').addEventListener('touchstart', e => {
+    e.preventDefault(); fireTailBomb();
   }, { passive: false });
 }
 
@@ -292,7 +309,6 @@ function _joySetKnobDOM(nx, ny) {
 }
 
 function updateJoystickUI(now) {
-  if(CTRL_MODE !== 'joystick') return;
   const hookCd = document.getElementById('joy-hook-cd');
   const tailbulletCd = document.getElementById('joy-tailbullet-cd');
   const boostCd = document.getElementById('joy-boost-cd');
@@ -307,10 +323,17 @@ function updateJoystickUI(now) {
     if(hookBtn) hookBtn.classList.toggle('ready', cd <= 0);
   }
     if(tailbulletCd && G.player) {
-    const until = G.player.tailbulletCooldownUntil || 0;
+    const until = G.player.tailBulletCooldownUntil || 0;
     const cd = Math.max(0, (until - now) / CFG.TAIL_BULLET_COOLDOWN_MS);
     tailbulletCd.style.setProperty('--cd', Math.round(cd * 360) + 'deg');
     if(tailbulletBtn) tailbulletBtn.classList.toggle('ready', cd <= 0);
+  }
+  const bombCd = document.getElementById('joy-bomb-cd');
+  const bombBtn = document.getElementById('joy-bomb-btn');
+  if(bombCd && G.player) {
+    const cd = Math.max(0, ((G.player.bombCooldownUntil || 0) - now) / CFG.BOMB_COOLDOWN_MS);
+    bombCd.style.setProperty('--cd', Math.round(cd * 360) + 'deg');
+    if(bombBtn) bombBtn.classList.toggle('ready', cd <= 0);
   }
   if(boostCd) {
     const elapsed = now - (G.burstAt || 0);

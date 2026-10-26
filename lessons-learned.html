@@ -281,6 +281,10 @@ applyRangeSlider(CFG.BOT_RANGE); // startup: read CFG, don't overwrite it</pre>
 <p>The old <code>#s-start</code> panel was hidden on load, but its Dad HARD buttons were still wired up in <code>dad.js</code>. Nothing could reach them. The start menu was rebuilt in <code>mp-overlay</code>, the screen that is actually visible.</p>
 <p><span class="good">CHECK:</span> Before adding a button, confirm the element is visible at runtime: <code>isVisible()</code> in a browser, not just the class names.</p>
 
+<h2>25. A MODE FLAG CAN HIDE A BUTTON THAT THE KEYBOARD STILL USES</h2>
+<p>The action buttons were only shown when <code>CTRL_MODE === 'joystick'</code>. The keyboard and touch-steering modes could still fire hook and tail bullet, so the feature looked alive while its button was missing. Separately, the tail bullet button was shown only when <code>TAILBULLET_ENABLED</code> was true, a flag only Dad's mode set, so the button never showed anywhere else.</p>
+<p><span class="good">RULE:</span> When a control is visible in one mode, check its visibility rule against every mode it works in. A button that works from a key must have a button in every mode that has a key for it. Use the same rule for both, not a separate flag.</p>
+
 <h2>16. OVERLAY z-index BLOCKS HUD BUTTONS</h2>
 <p>Fullscreen overlays use <code>position:fixed; inset:0; z-index:100</code>. If <code>#hud</code> has no <code>z-index</code> it sits in the default stacking context (z-index: auto ≈ 0) — <em>below</em> the overlay — even though it is visually above it due to opacity and layout order. Clicks on HUD buttons pass through to the overlay behind.</p>
 <div class="warn">

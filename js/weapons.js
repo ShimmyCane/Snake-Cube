@@ -293,6 +293,100 @@ function drawTailBullets(now) {
   ctx.restore();
 }
 
+// ── Tail bomb: drop your last segment as a mine behind you ──
+// A rival head that comes within BOMB_TRIGGER_CELLS starts a fuse. The bomb blinks
+// for BOMB_FUSE_MS, then blasts. Blast rules:
+//   - Body segments inside the blast are shredded: the chain is cut at the first
+//     one caught, and everything from there on becomes food.
+//   - Heads are never hit, so a snake can still burst or run clear with its head.
+//   - The owner's own body is immune to the owner's bombs.
+function fireTailBomb() {
+  if(!G || !G.running || !G.player || G.player.dead) return;
+  if(!skillUnlocked('bomb')) return;
+  const p = G.player;
+  if(p.segs.length < 2) { showFlash('No tail to bomb with!', '#ff4444'); return; }
+  const now = performance.now();
+  if(now < (p.bombCooldownUntil || 0)) {
+    const rem = Math.ceil((p.bombCooldownUntil - now) / 1000);
+    showFlash(`B ${rem}s`, '#ff6b35');
+    return;
+  }
+  const tailSeg = p.segs.pop();
+  if(!G.bombs) G.bombs = [];
+  G.bombs.push({ col: tailSeg.col, row: tailSeg.row, owner: p, armedAt: now + CFG.BOMB_ARM_MS, state: 'armed', fuseAt: 0 });
+  p.bombCooldownUntil = now + CFG.BOMB_COOLDOWN_MS;
+  showFlash('💣 TAIL BOMB DROPPED', '#ff6b35');
+}
+
+function tickTailBombs(now) {
+  if(!G || !G.bombs || !G.bombs.length) return;
+  for(let i = G.bombs.length - 1; i >= 0; i--) {
+    const b = G.bombs[i];
+    if(b.state === 'armed') {
+      if(now < b.armedAt) continue;
+      const near = allSnakes().some(sn => sn !== b.owner &&
+        Math.hypot(sn.segs[0].col - b.col, sn.segs[0].row - b.row) <= CFG.BOMB_TRIGGER_CELLS);
+      if(near) { b.state = 'fuse'; b.fuseAt = now + CFG.BOMB_FUSE_MS; }
+    } else if(b.state === 'fuse' && now >= b.fuseAt) {
+      detonateTailBomb(b, now);
+      G.bombs.splice(i, 1);
+    }
+  }
+  if(G.blasts) G.blasts = G.blasts.filter(bl => now - bl.at < 500);
+}
+
+function detonateTailBomb(b, now) {
+  const r = CFG.BOMB_BLAST_CELLS;
+  if(!G.blasts) G.blasts = [];
+  G.blasts.push({ col: b.col, row: b.row, at: now });
+  for(const sn of allSnakes()) {
+    if(sn === b.owner) continue;
+    // First body segment (index 1 onward; index 0 is the head) inside the blast
+    let cut = -1;
+    for(let i = 1; i < sn.segs.length; i++) {
+      if(Math.hypot(sn.segs[i].col - b.col, sn.segs[i].row - b.row) <= r) { cut = i; break; }
+    }
+    if(cut < 0) continue;
+    const shredded = sn.segs.splice(cut);
+    for(const seg of shredded) G.food.push({ col: seg.col, row: seg.row, val: seg.val });
+    if(sn.isPlayer) showFlash('💥 TAIL SHREDDED!', '#ff6b35');
+  }
+}
+
+function drawTailBombs(now) {
+  if(!G) return;
+  ctx.save();
+  for(const b of (G.bombs || [])) {
+    const p = project3(b.col, 0.2, b.row);
+    if(!p) continue;
+    const edge = project3(b.col + CFG.BOMB_BLAST_CELLS, 0.2, b.row);
+    const ringPx = edge ? Math.max(6, Math.abs(edge.x - p.x)) : 20;
+    // Blast zone: faint ring while armed, stronger while the fuse burns
+    ctx.globalAlpha = b.state === 'fuse' ? 0.45 : 0.2;
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, ringPx, 0, Math.PI * 2); ctx.stroke();
+    // The bomb itself: blinks red and white during the fuse
+    const blink = b.state === 'fuse' && Math.floor(now / 100) % 2 === 0;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = blink ? '#ffffff' : '#ff3322';
+    ctx.shadowColor = '#ff3322';
+    ctx.shadowBlur = b.state === 'fuse' ? 14 : 6;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fill();
+  }
+  // Expanding blast flash
+  for(const bl of (G.blasts || [])) {
+    const p = project3(bl.col, 0.2, bl.row);
+    if(!p) continue;
+    const age = (now - bl.at) / 500;
+    ctx.globalAlpha = 1 - age;
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 10 + age * 60, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // ── Vacuum effect ──
 function tickVacuum(now) {
   if(!G || !G.vacuumUntil || now >= G.vacuumUntil) return;

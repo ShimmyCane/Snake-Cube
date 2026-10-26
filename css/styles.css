@@ -213,6 +213,9 @@ td { padding:5px 8px; }
 #joy-tailbullet-btn { border-color:rgba(148, 12, 252, 0.5); }
 #joy-tailbullet-btn.ready { border-color:#ff6b35; box-shadow:0 0 14px rgba(148, 12, 252, 0.5); }
 #joy-boost-btn { border-color:rgba(0,245,196,0.5); }
+#joy-bomb-btn { border-color:rgba(255,51,34,0.6); }
+#joy-bomb-btn.ready { border-color:#ff3322; box-shadow:0 0 14px rgba(255,51,34,0.5); }
+.joy-btn.locked { opacity:0.35; filter:grayscale(1); }
 #joy-boost-btn.ready { border-color:#00f5c4; box-shadow:0 0 14px rgba(0,245,196,0.4); }
 .joy-btn-cd {
   position:absolute; inset:0; border-radius:50%; pointer-events:none;

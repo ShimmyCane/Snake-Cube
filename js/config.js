@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-//  FELIX'S SNAKE CUBES — v3.1.1
+//  FELIX'S SNAKE CUBES — v4.1.0
 //  Architecture, data-flow, key objects, and section map:
 //  → schematic.html
 // ════════════════════════════════════════════════════════════════════
@@ -66,6 +66,12 @@ const CFG = {
   // ── Tail Bullet ──
   TAIL_BULLET_SPEED: 3.5,
   TAIL_BULLET_COOLDOWN_MS: 1500,
+  // ── Tail Bomb: a mine dropped from your tail ──
+  BOMB_COOLDOWN_MS: 8000,
+  BOMB_ARM_MS: 800,        // safe period after dropping, so you can't blow yourself up at once
+  BOMB_TRIGGER_CELLS: 3.0, // a rival head this close starts the fuse
+  BOMB_FUSE_MS: 1000,      // blinking warning before the blast
+  BOMB_BLAST_CELLS: 3.5,   // blast radius — body segments inside it are shredded; heads are immune
   // ── Vacuum ──
   VACUUM_RANGE: 12.0,
   VACUUM_DURATION_MS: 15000,
@@ -89,7 +95,6 @@ const CFG_EXPERT = {
 };
 let EXPERT_MODE = false;
 let HOOK_ENABLED = false;
-let TAILBULLET_ENABLED = false;
 let RADAR_ALWAYS_ON = false;
 let BONUS_SIZE_MULT = 2.0;
 // Density multiplier: 0.5–2.0, default 1.0 — set by slider

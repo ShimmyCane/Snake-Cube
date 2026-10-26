@@ -10,6 +10,7 @@ function loop(ts) {
     if(++lbFrame % 18 === 0) updateLeaderboard();
     tickHooks(ts);
     tickTailBullets(ts);
+    tickTailBombs(ts);
     tickVacuum(ts);
     updateJoystickUI(ts);
   }
@@ -219,6 +220,9 @@ function draw(now) {
   // Tail bullets
   drawTailBullets(now);
 
+  // Tail bombs and blasts
+  drawTailBombs(now);
+
   // Hook ropes and tips
   drawHooks(now);
 
@@ -319,7 +323,6 @@ function draw(now) {
   const burstUnlocked = skillUnlocked('burst');   // Dad's mode: hidden until the BURST skill is earned
   if(burstBar)   burstBar.style.display   = burstUnlocked ? '' : 'none';
   if(burstLabel) burstLabel.style.display = burstUnlocked ? '' : 'none';
-  document.getElementById('joy-boost-btn')?.classList.toggle('hidden', !burstUnlocked);
   if(burstFill && G) {
     const elapsed = now - (G.burstAt || 0);
     const pct = Math.min(1, elapsed / CFG.BURST_RECHARGE_MS);

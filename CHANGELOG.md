@@ -6,6 +6,23 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## v4.1.0 — 2026-10-26
+
+### Action buttons
+- Hook, tail bullet, tail bomb and burst buttons now show in Felix steering mode too. They were only shown with the joystick pad.
+- The tail bullet button now appears in every mode. It was hidden everywhere except Dad's mode, because its visibility depended on a flag that only Dad's mode set.
+- In Dad's mode, locked skill buttons stay visible but dimmed until a mission unlocks them.
+- Fixed the tail cooldown ring on the buttons, which read a property name that no code set.
+
+### Tail bomb (new)
+- Drop your last segment as a mine: **B** key or 💣 button, 8 s cooldown.
+- A rival head within 3 cells starts a 1 s blinking fuse, then the bomb blasts.
+- The blast shreds rival body inside a 3.5-cell radius. The chain is cut at the first segment caught, and the rest becomes food. Heads are immune, so a rival can still burst or run clear with its head.
+- The owner's own body is immune to the owner's bombs.
+- Dad's mode: TAIL BOMB is the third skill, after HOOK and TAIL BULLET.
+
+---
+
 ## v4.0.0 — 2026-10-25
 
 ### Start menu

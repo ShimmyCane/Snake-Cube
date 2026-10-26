@@ -63,6 +63,8 @@
           <button class="mp-btn orange" id="mp-btn-join-comp" style="flex:1;padding:9px 4px;font-size:0.66rem;line-height:1.35">⚔️ TRY JOIN<br><span style="font-size:0.56rem;opacity:0.55">VERSUS</span></button>
         </div>
       </div>
+      <p class="menu-section-label" style="margin-top:4px">Another game</p>
+      <a class="mp-btn" href="snake2/" style="display:block;text-align:center;text-decoration:none;padding:10px">🏛️ SNAKE II<br><span style="font-size:0.56rem;opacity:0.7">Roman numerals · grid snake</span></a>
       <p id="mp-status" style="font-size:0.65rem;color:#555570;min-height:1.1em;margin-top:4px;text-align:center"></p>
       <button class="mp-btn" id="mp-btn-others-back" style="width:100%;max-width:300px;margin-top:10px;padding:10px">← BACK</button>
     </div>

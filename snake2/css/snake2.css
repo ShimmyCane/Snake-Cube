@@ -1,0 +1,104 @@
+/* ════════════════════════════════════════════════════════════════════
+   SNAKE II — cartoon styles. Masonry stones copied from the main menu
+   (ShimmyCane/Index "Polygonal Masonry").
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  --ink: #2b2118;
+  --paper: #f4e7c5;
+  --paper-deep: #e6d4a6;
+  --stone: #8c8273;
+  --gold: #d4a017;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+.hidden { display: none !important; }
+
+canvas#board { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+canvas#minimap { position: fixed; left: 10px; bottom: 10px; border: 3px solid var(--ink); border-radius: 10px;
+  background: var(--paper); box-shadow: 0 4px 0 rgba(43,33,24,.35); }
+
+/* ── HUD ── */
+.hud { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 10px 12px; pointer-events: none; }
+.hud-left, .hud-right { display: flex; flex-direction: column; gap: 2px; }
+.hud-right { align-items: flex-end; }
+.hud-label { font-weight: bold; letter-spacing: .15em; font-size: 11px; color: var(--ink); opacity: .7; }
+.hud-numeral { font-size: 40px; font-weight: bold; line-height: 1; text-shadow: 2px 2px 0 #fff8e1; }
+.hud-arabic { font-size: 14px; opacity: .8; }
+.hud-timer { font-size: 22px; font-weight: bold; background: #fff8e1; border: 3px solid var(--ink); border-radius: 12px; padding: 2px 10px; }
+.hud-best { font-size: 12px; margin-top: 4px; }
+.hud-btn { pointer-events: auto; margin-top: 6px; width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--ink);
+  background: #fff8e1; font-weight: bold; font-size: 14px; cursor: pointer; }
+
+.flash { position: fixed; top: 34%; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff8e1;
+  padding: 8px 16px; border-radius: 14px; font-weight: bold; pointer-events: none; white-space: nowrap; }
+
+/* ── D-pad ── */
+.dpad { position: fixed; right: 14px; bottom: 14px; width: 150px; height: 150px; }
+.dpad-btn { position: absolute; width: 50px; height: 50px; border-radius: 14px; border: 3px solid var(--ink);
+  background: #fff8e1; font-size: 18px; box-shadow: 0 4px 0 rgba(43,33,24,.35); cursor: pointer; }
+.dpad-btn:active { transform: translateY(2px); box-shadow: none; }
+.dpad-up { left: 50px; top: 0; }
+.dpad-left { left: 0; top: 50px; }
+.dpad-right { left: 100px; top: 50px; }
+.dpad-down { left: 50px; top: 100px; }
+
+/* ── Screens ── */
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 20px; background: var(--paper); z-index: 10; text-align: center; overflow-y: auto; }
+.screen.overlay { background: rgba(244,231,197,.92); }
+.title { font-size: 44px; margin: 0; letter-spacing: .08em; text-shadow: 3px 3px 0 #fff8e1; }
+.title.small { font-size: 28px; }
+.subtitle { margin: -8px 0 4px; font-style: italic; opacity: .75; }
+.link-btn { background: none; border: none; color: var(--ink); font: inherit; text-decoration: underline; cursor: pointer; padding: 6px; }
+
+/* ── Masonry stones ── */
+.stone-wall { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 88px; gap: 4px; width: 100%; max-width: 320px; }
+.stone-wall.menu-wall { grid-template-columns: 1fr; grid-auto-rows: 96px; }
+.stone { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; border: none;
+  background: var(--c, #888); color: var(--ink); font: inherit; font-weight: bold; font-size: 20px; letter-spacing: .05em;
+  cursor: pointer; clip-path: var(--stone); transition: transform .15s ease, filter .15s ease; }
+.stone small { font-size: 12px; font-weight: normal; opacity: .85; letter-spacing: 0; }
+.stone:hover, .stone:focus-visible { transform: scale(1.03); filter: brightness(1.05); outline: none; }
+.stone:active { transform: scale(.97); }
+.stone.s1 { --stone: polygon(4% 0, 64% 7%, 100% 0, 97% 52%, 100% 100%, 36% 93%, 0 100%, 6% 48%); }
+.stone.s2 { --stone: polygon(0 14%, 28% 0, 72% 9%, 100% 0, 91% 56%, 100% 100%, 47% 90%, 9% 100%, 3% 58%); }
+.stone.s3 { --stone: polygon(12% 0, 88% 4%, 100% 40%, 82% 100%, 18% 95%, 0 58%); }
+.stone.s4 { --stone: polygon(0 6%, 46% 0, 100% 12%, 93% 68%, 100% 100%, 54% 86%, 7% 100%, 2% 44%); }
+#btn-resume { --c: #f7c948; min-width: 220px; padding: 14px; }
+#btn-again { --c: #6c5ce7; color: #fff; min-width: 220px; padding: 14px; }
+#btn-menu { }
+
+/* ── Menu extras ── */
+.best-box { background: #fff8e1; border: 3px solid var(--ink); border-radius: 16px; padding: 10px 16px; min-width: 240px; font-size: 14px; }
+.best-title { font-weight: bold; letter-spacing: .1em; font-size: 11px; text-transform: uppercase; margin-top: 6px; opacity: .7; }
+.best-list div { padding: 1px 0; }
+
+/* ── Settings ── */
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 340px;
+  background: #fff8e1; border: 3px solid var(--ink); border-radius: 14px; padding: 10px 14px; font-size: 16px; }
+.row.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.row input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--ink); }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 8px 4px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; font: inherit; font-weight: bold; cursor: pointer; }
+.seg button.active { background: var(--gold); color: #fff; }
+.hint { font-size: 12px; opacity: .75; }
+
+/* ── Countdown ── */
+.count-text { font-size: 96px; font-weight: bold; text-shadow: 4px 4px 0 #fff8e1, 0 6px 0 rgba(43,33,24,.25); }
+
+/* ── Game over ── */
+.over-score { font-size: 56px; font-weight: bold; }
+.over-detail { font-size: 16px; opacity: .8; }
+.over-best { font-size: 14px; background: #fff8e1; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px; }
+.wreath { font-size: 64px; }
+
+.load-error { position: fixed; inset: 0; background: #2b2118; color: #fff8e1; padding: 24px; display: flex;
+  align-items: center; justify-content: center; text-align: center; z-index: 99; font-family: system-ui, sans-serif; }
+
+@media (max-width: 420px) {
+  .hud-numeral { font-size: 32px; }
+  .stone-wall { grid-auto-rows: 74px; }
+}
+@media (prefers-reduced-motion: reduce) { .stone { transition: none; } }

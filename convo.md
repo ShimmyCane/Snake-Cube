@@ -151,3 +151,44 @@ Answers you gave: head size = typical; the map flip is the texture only (3D obje
 5. **`BOT_START_VAL`.** Checked: nothing references it. Dropped.
 6. **Remove `athena_piano_3`, add a music tracker.** Done: entry removed. `MUSIC.md` lists the tracks in use.
 7. **v4 with a changelog.** Done: `CHANGELOG.md` covers v4.0.0 and reconstructs history from the lessons-learned, process, schematic, and code notes. The repo's git history starts at a single commit, so older entries are reconstructed.
+
+---
+
+## Snake II — Roman numeral snake (plan, 2026-10-26)
+
+The first draft was `snake2/schematic.html`. It has been replaced by `snake2/schematic_snake2.md` (see below).
+
+**What you asked for:** a separate sub-game in its own subfolder, sharing assets where it can. It's a classic 2-D grid snake: tight field, solid walls, four directions, everyone at the same speed, cartoon look, one mode (medium, about 3 minutes), probably no skills.
+
+**Core idea:** the snake *is* a number. Its body spells the value in Roman numerals, one symbol per cell. Eating I snacks counts up, and when the body spells something Romans wouldn't write, it collapses: IIII becomes IV and the tail gets shorter. So length is a puzzle. For example, VIII is 4 long but X is 1 long.
+
+**Sharing:** the music player and tracks are shared. The load-error panel and masonry buttons are copied and trimmed. The 3-D engine is not reused; it's built for free 360° movement and powers of 2.
+
+**Open questions** (defaults in brackets):
+1. Field size [18 × 24]
+2. Crashes: 3 lives or one-crash game over [3 lives]
+3. Rivals: 3 bots or solo [3 bots]
+4. MMXXVI: rare instant win, or the goal of a later endless mode [rare win]. Snacks alone reach about CCLXX (270) in 3 minutes.
+5. Snacks: I/V/X mix or only I [mix]
+6. Show the ordinary number under the Roman one [yes, with a toggle]
+7. Round length: 3 or 2 minutes [3]
+
+### Your answers (2026-10-26)
+
+1. **Field:** 50 × 50. The camera follows you and a minimap shows the whole board, since 50 cells won't fit a phone at a readable size.
+2. **Crashes:** one crash is game over.
+3. **Bots:** 3 bots, which you can't eat. Touching any snake is a crash. Crashed bots turn into I snacks and respawn.
+4. **Goal:** **MMXXI** (2021), Felix's birth year.
+5. **Snacks:** Classic I·V·X by default. A snack-set setting (Extended, Imperial) speeds things up. Simulated pace: Classic reaches about CCXII in 3:00, and Endless takes about 28 min with Classic or about 7½ min with Extended.
+6. **Ordinary numbers:** hidden by default, with a toggle in settings.
+7. **Modes:** Timed (3:00) plus Endless (until MMXXI).
+
+The full plan is in `snake2/schematic_snake2.md`. It still has four small open questions (section 22), each with a default.
+
+### Snake II — built (M0–M5)
+
+- Code is in `snake2/`, with `snake2/README.md` on how to run and test it.
+- 36 node tests pass. Headless Chromium runs of the menu, a round, pause (button and P key), settings, a collapse and a wall crash show no console errors.
+- The main game's OTHERS screen has a "Snake II" link.
+- Two corrections to the schematic: a III → IV collapse drops one cell (III is 3 long, IV is 2), not two. The pop label is `III + I → IV`, which shows the sum and the rewrite.
+- Still untested: on a real phone, the feel of swipes and the d-pad, and the bot wreck balance over full rounds.

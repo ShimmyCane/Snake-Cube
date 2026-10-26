@@ -3,6 +3,7 @@
 //  Track list and volume come from CFG_AUDIO in config.js.
 //  Attempts autoplay on load; falls back to first user interaction.
 //  MUS.toggle() — flip muted state + persist to localStorage
+//  MUS.setMuted(bool) — set it explicitly
 // ════════════════════════════════════════
 
 const MUS = (() => {
@@ -86,7 +87,12 @@ const MUS = (() => {
     _advance();
   }
 
-  return { init, toggle, skip, get muted() { return _el.muted; } };
+  // Set the mute state explicitly (used by the menu and settings checkboxes).
+  function setMuted(on) {
+    if (_el.muted !== on) toggle();
+  }
+
+  return { init, toggle, skip, setMuted, get muted() { return _el.muted; } };
 })();
 
 window.addEventListener('load', () => MUS.init());

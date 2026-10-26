@@ -9,6 +9,7 @@
   el.innerHTML = `
     <div style="font-family:'Courier New',monospace;font-size:0.55rem;color:#00f5c4;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;border-bottom:1px solid rgba(0,245,196,0.15);padding-bottom:6px">⚙️ Dev Controls</div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px">Camera</div>
+    <div class="sp-row" style="gap:10px;align-items:center"><label style="flex:unset">Music</label><input type="checkbox" id="music-chk" style="width:14px;height:14px;accent-color:#00f5c4;cursor:pointer"><span class="sp-val" id="music-val" style="color:#00f5c4">on</span></div>
     <div class="sp-row"><label>Height</label><input class="sp-slider" id="cam-slider" type="range" min="0" max="100" value="47" step="1" style="--pct:47%"><span class="sp-val" id="cam-val">47</span></div>
     <div style="font-size:0.48rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:-4px;margin-top:2px">Snake</div>
     <div class="sp-row"><label>Spacing</label><input class="sp-slider" id="gap-slider" type="range" min="10" max="200" value="55" step="5" style="--pct:24%"><span class="sp-val" id="gap-val">55</span></div>
@@ -272,6 +273,12 @@ function applyRoadBoostSlider(v) {
 }
 _roadboostSlider.addEventListener('input', () => applyRoadBoostSlider(parseInt(_roadboostSlider.value)));
 applyRoadBoostSlider(Math.round(CFG_DAD.ROAD_BOOST * 100)); // startup: read CFG, don't overwrite it
+
+// Music toggle (shared with the start menu)
+document.getElementById('music-chk').addEventListener('change', e => {
+  if (typeof MUS !== 'undefined') MUS.setMuted(!e.target.checked);
+  if (typeof syncMusicUI === 'function') syncMusicUI();
+});
 
 // Radar always-on toggle
 const _radarAlwaysChk = document.getElementById('radar-always-on');

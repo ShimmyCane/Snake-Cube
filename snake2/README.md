@@ -17,11 +17,12 @@ npx serve .            # or: python3 -m http.server 8000
 
 | | |
 |---|---|
-| Move | Arrow keys or WASD. Swipe on the board, or use the ▲◀▶▼ pad. |
+| Move | Arrow keys or WASD. Swipe on the board, or use the W / A / S / D pad in the lower left. |
 | Pause | P or Esc, or the II button. Leaving the tab also pauses. |
 | Goal | Reach **MMXXI** (2021). Timed mode is 3:00. Endless runs until you win or crash. |
-| Crash | Into a wall, your own body, or another snake, and the game is over. Head-on crashes count too. |
-| Bots | Three rivals. You can't eat them. When one crashes, its body becomes I coins and it comes back after 3 s. |
+| Crash | Into a wall, your own body, or another snake, and you break apart in a small explosion, then fade to the game-over screen. Head-on crashes count too. |
+| Rivals | Three by default, 1 to 10 in settings. You can't eat them. Any snake that crashes breaks apart into coins worth its symbols, thrown within 3 cells. A bot comes back after 3 s. |
+| Numbers | The clock, scores and menus are Roman only. Zero is N (nulla): 3:00 is III:N. |
 
 ## Layout
 
@@ -60,7 +61,7 @@ The suites cover the numeral maths (1–2021 round trips, the length table, no z
 
 | To change | Edit |
 |---|---|
-| Speed, board size, goal, bots, respawn time | `js/config.js` → `CFG2` |
+| Speed, board size, cell size, goal, rival limits, respawn time, crash radius | `js/config.js` → `CFG2` |
 | Snack odds | `js/config.js` → `SNACK_SETS` |
 | Symbol colours | `js/config.js` → `SYMBOL_COLOURS` |
 | How numerals collapse | `js/snake.js` → `setValue()` |

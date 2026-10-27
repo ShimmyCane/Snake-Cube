@@ -14,7 +14,7 @@ A classic 2-D grid snake where your snake **is** a number, written in Roman nume
 |---|---|---|---|
 | 1 | Field size | 50 × 50 | 48 × 48 playable cells inside a stone wall. The camera follows you, because the whole board won't fit a phone screen at a readable size (section 9). |
 | 2 | Crashes | 1 crash = game over | No lives. Classic. |
-| 3 | Rivals | 3 bots, can't eat them | Bots are moving obstacles that also race you for snacks. Touching any snake is a crash, for whoever runs into whom. |
+| 3 | Rivals | 3 bots by default, up to 10 in settings; can't eat them | Bots are moving obstacles that also race you for snacks. Touching any snake is a crash, for whoever runs into whom. |
 | 4 | Winning number | **2021**, Felix's birth year | **MMXXI** (5 symbols). Reaching it wins. |
 | 5 | Snacks | Mix of 3 (I, V, X), with a setting for bigger mixes if it's too slow | Snack set setting: Classic / Extended / Imperial (section 5). |
 | 6 | Show the ordinary number | No, toggle in settings | Off by default. Settings → "Show numbers". |
@@ -68,12 +68,12 @@ Romans had no zero, so every snake starts at **I** and can never go below it. Th
 | Board | 50 × 50 cells. The outer ring is stone wall, leaving 48 × 48 cells to play in. |
 | Movement | Up, down, left or right. One cell per tick. You can't reverse into yourself (a 180° turn is ignored). |
 | Speed | One speed for every snake: 243 ms per step (30% slower than the first build). Size never changes it. |
-| Start | You start as **I** near the middle, facing right. The 3 bots start as **I** in random corners. |
+| Start | You start as **I** near the middle, facing right. Rival snakes start as **I** at spread-out spots, facing inward. |
 | Snacks | 20 on the field. When one is eaten, a new one appears on a random free cell. Values come from the snack set (section 5) and never scale up. |
 | Eating | Your head enters a snack's cell: `value += snack value`. |
 | Crash | You crash if your head moves into a wall, any part of your own body, or any part of another snake (head or body). |
-| Your crash | Game over. |
-| Bot crash | That bot disappears, its cells become snacks of value I, and it respawns as I after 3 s on a free cell far from you. |
+| Your crash | You break apart in a small explosion: each body symbol becomes a coin of its value, thrown within 3 cells. Then the screen holds about a second and fades into the game-over screen. |
+| Bot crash | Same: it breaks apart and its coins are thrown within 3 cells. It respawns as I after 3 s on a free cell far from you. Any crash does this: wall, own body, another snake, head-on. |
 | Head-on | Two heads entering the same cell, or swapping cells: both crash. If one of them is you, game over. |
 | Your tail rule | Moving into the cell your own tail is leaving this tick is allowed (classic). It doesn't apply on a tick when you're growing. |
 | Goal | Reach **MMXXI** (2021). Your value can't go past it. A snack that would take you over 2021 sets you to exactly 2021 and you win. |
@@ -136,7 +136,8 @@ These are estimates, so the numbers will be tuned after real play.
 
 | Setting | Options | Default |
 |---|---|---|
-| Show numbers | on / off. Shows the ordinary number under the Roman one in the HUD and on snacks. | off |
+| Show numbers | on / off. Shows the ordinary number under the Roman one in the HUD only. The clock, scores and menus are always Roman. | off |
+| Rival snakes | 1 to 10, shown in Roman numerals. More rivals also means more snacks on the field. | III (3) |
 | Snack set | Classic / Extended / Imperial | Classic |
 | Music | on / off | on |
 | Controls hint | on / off. Shows "swipe or use the arrows" at the start. | on |
@@ -218,13 +219,13 @@ A 50 × 50 board on a phone at 390 px wide would make each cell about 7 px, too 
 
 | Screen | Cell size | Cells visible (about) |
 |---|---|---|
-| Phone portrait (390 × 844) | 26 px | 15 wide × 23 tall (room left for HUD and d-pad) |
-| Tablet | 30 px | 25 × 30 |
-| Desktop (1440 × 900) | 30 px | 45 × 26 |
+| Phone portrait (390 × 844) | 35 px | 11 wide × 24 tall (room left for HUD and the pad) |
+| Tablet (820 × 1180) | 35 px | 23 × 33 |
+| Desktop (1440 × 900) | 35 px | 41 × 26 |
 
 - The camera keeps you centred and slides smoothly. It stops at the walls, so the edge of the world always looks solid.
 - A **minimap** in a corner shows the whole 50 × 50: you, the bots, snacks as dots. On a big field this is how you find food.
-- Cell size is a setting in `CFG2.CELL_PX` if the letters need to be bigger.
+- Cells are 35 px on every device (`CFG2.CELL_PX`), so tiles, coins and buttons look the same on an iPhone, an iPad and a laptop. A bigger screen shows more of the map instead, and the minimap scales up with it (110 px on a phone, up to 260 px). The page re-checks the screen size every frame, because iPhones and iPads report it late.
 
 ---
 
@@ -310,7 +311,7 @@ botChooseDir(bot, board):
 | Body tiles | Rounded squares, thick dark outline, one bold serif letter each |
 | Symbol colours | I green · V yellow · X orange · L red · C purple · D blue · M gold |
 | Snake identity | Each snake's head has its own coloured ring and eyes; your ring is teal, like the main game |
-| Snacks | Gold coins stamped with the letter, gently bobbing |
+| Snacks | Coins coloured by symbol (I green, V yellow, X orange, L red, C purple, D blue, M gold), gently bobbing. A crashed snake's coins fly out from its body. |
 | Collapse | Dropped tail tiles squash and fade; a floating "III + I → IV" |
 | Motion | Steps on the grid, but drawn eased between cells so it reads smoothly |
 | Crash | A puff and a short screen shake |
@@ -325,7 +326,7 @@ botChooseDir(bot, board):
 | Device | Input |
 |---|---|
 | Keyboard | Arrows or WASD to turn; P or Esc to pause |
-| Phone | Swipe anywhere on the board, or the 4-button d-pad under the board (both always on) |
+| Phone | Swipe anywhere on the board, or the W / A / S / D pad in the lower left (both always on). The lower right is kept free for skill buttons later. |
 | Turn queue | Up to 2 turns are queued, so a quick "up, left" between ticks isn't lost |
 | Pause | Leaving the tab or opening settings pauses the game |
 
@@ -361,7 +362,7 @@ These keys are separate from the main game's, so resetting one game's scores nev
 | Key | Default | Meaning |
 |---|---|---|
 | `COLS`, `ROWS` | 50, 50 | Board including the wall ring |
-| `CELL_PX` | 26 phone · 30 larger | Drawn cell size |
+| `CELL_PX` | 35 | Drawn cell size, the same on every device |
 | `TICK_MS` | 243 | One step for every snake |
 | `ROUND_MS` | 180000 | Timed mode length |
 | `GOAL` | 2021 | MMXXI: the cap and the win |
@@ -434,3 +435,19 @@ The build uses the defaults in brackets unless you say otherwise.
 2. **Crashed bots become I snacks** [yes]. Or should they just vanish?
 3. **Bots never chase you** [yes]. Or should they hunt a little on a harder setting?
 4. **Minimap** always on [yes]. Or a setting?
+
+
+---
+
+## 23. Changes after the first phone test (2026-10-27)
+
+| Change | Detail |
+|---|---|
+| Zoom | Cells grew from 26 to 35 px (about 35% bigger) on an iPhone. |
+| Same size everywhere | Cells, tiles and buttons are the same size on every device. A bigger screen shows more map, and the minimap grows. The screen size is re-checked every frame, which fixes the stale-size clipping on iPad. Safe-area insets keep the HUD and pad off the notch and home bar. |
+| Coin colours | Each coin takes the colour of its symbol. |
+| Rival snakes | A settings stepper from 1 to 10, default 3. Snack count grows by 4 per extra rival. |
+| Controls | The pad moves to the lower left, labelled W / A / S / D. The minimap moves to the lower right. |
+| Crashes | Instead of biting smaller snakes, any snake that crashes breaks apart: a small explosion, with each symbol thrown as a coin of the same value within 3 cells. The player's crash fades into the game-over screen after about a second. Coin values are conserved, so a big snake's wreck is worth a lot. |
+| Roman everywhere | The clock reads in Roman numerals (II:LIX), with N for zero. Scores and best lists are Roman only. |
+| Homepage | A "← Snake I" button links back to the first game. The pause screen has the same link. |

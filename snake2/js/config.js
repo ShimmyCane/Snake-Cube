@@ -13,14 +13,22 @@ const CFG_AUDIO = {
 
 const CFG2 = {
   COLS: 50, ROWS: 50,          // board including the stone wall ring
-  CELL_PX_MIN: 22,             // smallest drawn cell on a phone
-  CELL_PX_MAX: 34,             // largest drawn cell on a big screen
+  CELL_PX: 35,                 // drawn cell size, the same on every device: bigger screens show more map
+  MINI_PX_MIN: 110,            // minimap size on a phone
+  MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
   TICK_MS: 243,                // one step for every snake (30% slower than 170)
   ROUND_MS: 180000,            // Timed mode: 3:00
   GOAL: 2021,                  // MMXXI — the cap and the win
   START_VALUE: 1,              // every snake starts as I
-  SNACKS_ON_FIELD: 20,
-  BOTS: 3,
+  SNACKS_ON_FIELD: 20,         // snacks kept on the board with the default number of bots
+  SNACKS_PER_EXTRA_BOT: 4,     // more rivals eat more, so the field grows with them
+  BOTS: 3,                     // default rival snakes
+  BOTS_MIN: 1,
+  BOTS_MAX: 10,                // the settings stepper stops here
+  SHATTER_RADIUS: 3,           // a crashed snake's pieces land within this many cells
+  SHATTER_FLY_MS: 420,         // how long the pieces take to fly out
+  BURST_MS: 520,               // the little explosion
+  END_HOLD_MS: 1100,           // after a crash or win, before fading to the end screen
   BOT_RESPAWN_MS: 3000,
   BOT_SAFE_DISTANCE: 8,        // a respawning bot needs this much room from you
   TURN_QUEUE: 2,               // buffered player turns
@@ -41,6 +49,6 @@ const SYMBOL_COLOURS = {
   C: '#9b59b6', D: '#3498db', M: '#d4a017',
 };
 
-const BOT_NAMES = ['Marcus', 'Julia', 'Livia', 'Gaius', 'Octavia', 'Lucius', 'Cornelia', 'Tiberius'];
-const BOT_COLOURS = ['#e17055', '#6c5ce7', '#fdcb6e'];
+const BOT_NAMES = ['Marcus', 'Julia', 'Livia', 'Gaius', 'Octavia', 'Lucius', 'Cornelia', 'Tiberius', 'Flavia', 'Aurelius', 'Claudia', 'Brutus'];
+const BOT_COLOURS = ['#e17055', '#6c5ce7', '#fdcb6e', '#0984e3', '#e84393', '#00cec9', '#d63031', '#636e72', '#a29bfe', '#55efc4'];
 const PLAYER_COLOUR = '#00b894';

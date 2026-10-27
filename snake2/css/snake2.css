@@ -15,12 +15,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper)
 .hidden { display: none !important; }
 
 canvas#board { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-canvas#minimap { position: fixed; left: 10px; bottom: 10px; border: 3px solid var(--ink); border-radius: 10px;
+canvas#minimap { position: fixed; right: calc(10px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); border: 3px solid var(--ink); border-radius: 10px;
   background: var(--paper); box-shadow: 0 4px 0 rgba(43,33,24,.35); }
 
 /* ── HUD ── */
 .hud { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start;
-  padding: 10px 12px; pointer-events: none; }
+  padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left)); pointer-events: none; }
 .hud-left, .hud-right { display: flex; flex-direction: column; gap: 2px; }
 .hud-right { align-items: flex-end; }
 .hud-label { font-weight: bold; letter-spacing: .15em; font-size: 11px; color: var(--ink); opacity: .7; }
@@ -35,10 +35,13 @@ canvas#minimap { position: fixed; left: 10px; bottom: 10px; border: 3px solid va
   padding: 8px 16px; border-radius: 14px; font-weight: bold; pointer-events: none; white-space: nowrap; }
 
 /* ── D-pad ── */
-.dpad { position: fixed; right: 14px; bottom: 14px; width: 150px; height: 150px; }
+/* Lower left, laid out like W A S D. The lower right stays free for skill buttons later. */
+.dpad { position: fixed; left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); width: 150px; height: 150px; }
 .dpad-btn { position: absolute; width: 50px; height: 50px; border-radius: 14px; border: 3px solid var(--ink);
   background: #fff8e1; font-size: 18px; box-shadow: 0 4px 0 rgba(43,33,24,.35); cursor: pointer; }
 .dpad-btn:active { transform: translateY(2px); box-shadow: none; }
+.dpad-btn { position: absolute; display: flex; align-items: center; justify-content: center; }
+.dpad-btn .k { position: absolute; top: 2px; right: 5px; font-size: 10px; font-weight: bold; opacity: .55; }
 .dpad-up { left: 50px; top: 0; }
 .dpad-left { left: 0; top: 50px; }
 .dpad-right { left: 100px; top: 50px; }
@@ -102,3 +105,18 @@ canvas#minimap { position: fixed; left: 10px; bottom: 10px; border: 3px solid va
   .stone-wall { grid-auto-rows: 74px; }
 }
 @media (prefers-reduced-motion: reduce) { .stone { transition: none; } }
+
+/* ── Way back to Snake I ── */
+.snake1 { display: inline-flex; flex-direction: column; align-items: center; padding: 8px 18px; background: #fff8e1;
+  border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); text-decoration: none; font-weight: bold; letter-spacing: .08em; }
+.snake1 small { font-weight: normal; font-size: 11px; letter-spacing: 0; opacity: .75; }
+
+/* ── Rival snakes stepper ── */
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper button { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); background: #fff; font: inherit; font-weight: bold; font-size: 20px; cursor: pointer; }
+.stepper-val { min-width: 56px; text-align: center; font-weight: bold; font-size: 18px; }
+
+/* ── The end screen fades in over the broken-apart board ── */
+#s-over.fade-in { animation: s2fade 700ms ease both; }
+@keyframes s2fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #s-over.fade-in { animation: none; } }

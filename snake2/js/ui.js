@@ -5,7 +5,7 @@
 
 const SETTINGS_KEY = 'snake2.settings';
 const BEST_KEYS = { timed: 'snake2.best.timed', endless: 'snake2.best.endless' };
-const SETTINGS_DEFAULT = { showNumbers: false, snackSet: 'classic', music: true, hint: true };
+const SETTINGS_DEFAULT = { showNumbers: false, snackSet: 'classic', music: true, hint: true, bots: CFG2.BOTS };
 const BEST_LIMIT = 5;
 
 const $ = id => document.getElementById(id);
@@ -42,9 +42,17 @@ function saveBest(mode, score) {
   return list;
 }
 
+// Time in Roman numerals, minutes then seconds: 2:59 is II:LIX. Romans had no zero,
+// so zero is written N, for nulla, as medieval scribes did: 3:00 is III:N.
 function formatClock(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const part = n => (n > 0 ? toRoman(n) : 'N');
+  return part(Math.floor(s / 60)) + ':' + part(s % 60);
+}
+
+function clampBots(n) {
+  const v = Number.isFinite(n) ? Math.round(n) : CFG2.BOTS;   // 0 is a real value, not 'missing'
+  return Math.max(CFG2.BOTS_MIN, Math.min(CFG2.BOTS_MAX, v));
 }
 
 function numeralText(value, showNumbers) {
@@ -72,9 +80,8 @@ function renderBestList(mode) {
   }
   for (const row of list) {
     const div = document.createElement('div');
-    const numeral = toRoman(row.value);
     const extra = mode === 'endless' && row.won ? ' · won in ' + formatClock(row.timeMs) : '';
-    div.textContent = numeral + ' (' + row.value + ')' + extra;
+    div.textContent = toRoman(row.value) + extra;
     box.appendChild(div);
   }
 }
@@ -119,17 +126,22 @@ function showEnd(G, list) {
   const won = G.result === 'won';
   const titles = { won: 'MMXXI — FELIX!', crash: 'CRASH!', time: "TIME'S UP" };
   $('over-title').textContent = titles[G.result] || 'GAME OVER';
-  $('over-score').textContent = toRoman(G.best) + '  (' + G.best + ')';
+  $('over-score').textContent = toRoman(G.best);
   $('over-detail').textContent = won && G.mode === 'endless' ? 'Won in ' + formatClock(G.elapsedMs) : '';
   const box = $('over-best');
   box.innerHTML = '';
   for (const row of list.slice(0, 3)) {
     const div = document.createElement('div');
-    div.textContent = toRoman(row.value) + ' (' + row.value + ')';
+    div.textContent = toRoman(row.value);
     box.appendChild(div);
   }
   $('over-wreath').classList.toggle('hidden', !won);
   showScreen('s-over');
+  // Fade in: the board breaks apart first, then the end screen fades over it
+  const el = $('s-over');
+  el.classList.remove('fade-in');
+  void el.offsetWidth;
+  el.classList.add('fade-in');
 }
 
 // ── Settings wiring ──
@@ -137,6 +149,7 @@ function applySettingsToDom(s) {
   $('set-numbers').checked = !!s.showNumbers;
   $('set-music').checked = !!s.music;
   $('set-hint').checked = !!s.hint;
+  $('bots-val').textContent = toRoman(clampBots(s.bots));
   document.querySelectorAll('[data-snack]').forEach(b => {
     b.classList.toggle('active', b.dataset.snack === s.snackSet);
   });
@@ -150,6 +163,13 @@ function bindSettings(settings, onMusic) {
     saveSettings(settings);
     onMusic(settings.music);
   });
+  const stepBots = delta => {
+    settings.bots = clampBots(settings.bots + delta);
+    saveSettings(settings);
+    applySettingsToDom(settings);
+  };
+  $('bots-minus').addEventListener('click', () => stepBots(-1));
+  $('bots-plus').addEventListener('click', () => stepBots(1));
   document.querySelectorAll('[data-snack]').forEach(b => {
     b.addEventListener('click', () => {
       settings.snackSet = b.dataset.snack;

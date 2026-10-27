@@ -6,6 +6,18 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Snake II, after the first phone test
+
+- **Bigger and the same everywhere:** cells are 35 px on every device (about 35% bigger on an iPhone). Bigger screens show more map, and the minimap scales up. The page re-checks the screen size every frame, and uses safe-area insets for the notch.
+- **Coins coloured by symbol.** A "Rival snakes" setting from 1 to 10 (default 3).
+- **Controls:** a W / A / S / D pad in the lower left, the minimap in the lower right.
+- **Crashes:** any crash makes the snake break apart in a small explosion, with its symbols thrown as coins of the same value within 3 cells. Your own crash fades into the game-over screen.
+- **Roman only:** the clock (III:N, II:LIX, with N for zero), scores and best lists. The HUD can still show Arabic numbers from a setting.
+- **Homepage:** a "← Snake I" button back to the first game.
+- Fixed `clampBots(0)` returning the default instead of 1. 47 node tests.
+
+---
+
 ## Unreleased — Snake II (new sub-game)
 
 A separate Roman-numeral grid snake in `snake2/`, linked from Felix's OTHERS screen. It shares only the music player and tracks with the main game.

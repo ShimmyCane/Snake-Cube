@@ -6,9 +6,9 @@ const vm = require('vm');
 
 const ORDER = ['config', 'roman', 'grid', 'snake', 'rules', 'bots', 'game'];
 
-function load() {
+function load(extra = []) {
   const ctx = vm.createContext({});
-  for (const name of ORDER) {
+  for (const name of ORDER.concat(extra)) {
     const file = path.join(__dirname, '..', 'js', name + '.js');
     vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: name + '.js' });
   }

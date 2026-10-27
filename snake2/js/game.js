@@ -3,10 +3,12 @@
 //  The UI calls createGame(), setPlayerTurn(), stepGame(), advanceClock().
 // ════════════════════════════════════════════════════════════════════
 
+// Ten start spots around the board, each facing inward. The first three are the default bots.
 const BOT_START = [
-  { c: 4, r: 4, dc: 1, dr: 0 },
-  { c: 45, r: 4, dc: -1, dr: 0 },
-  { c: 4, r: 45, dc: 1, dr: 0 },
+  { c: 4, r: 4, dc: 1, dr: 0 }, { c: 45, r: 4, dc: -1, dr: 0 }, { c: 4, r: 45, dc: 1, dr: 0 },
+  { c: 45, r: 45, dc: -1, dr: 0 }, { c: 25, r: 4, dc: 0, dr: 1 }, { c: 25, r: 45, dc: 0, dr: -1 },
+  { c: 4, r: 25, dc: 1, dr: 0 }, { c: 45, r: 25, dc: -1, dr: 0 },
+  { c: 14, r: 14, dc: 1, dr: 0 }, { c: 35, r: 35, dc: -1, dr: 0 },
 ];
 
 function createGame(opts) {
@@ -17,8 +19,9 @@ function createGame(opts) {
     id: 'player', name: 'Felix', isPlayer: true, colour: PLAYER_COLOUR,
     c: mid, r: mid, dc: 1, dr: 0,
   });
+  const botCount = Math.max(CFG2.BOTS_MIN, Math.min(CFG2.BOTS_MAX, opts.bots != null ? opts.bots : CFG2.BOTS));
   const bots = [];
-  for (let i = 0; i < CFG2.BOTS; i++) {
+  for (let i = 0; i < botCount; i++) {
     const b = BOT_START[i % BOT_START.length];
     bots.push(newSnake2({
       id: 'bot' + i, name: BOT_NAMES[i % BOT_NAMES.length], isPlayer: false,
@@ -35,13 +38,15 @@ function createGame(opts) {
     elapsedMs: 0,                // Endless mode clock (also used for the win time)
     snakes: [player, ...bots],
     player,
-    snacks: [],                  // { c, r, value }
+    snacks: [],                  // { c, r, value } + { piece, fromC, fromR, born } for a crashed snake's coins
+    snackTarget: CFG2.SNACKS_ON_FIELD + CFG2.SNACKS_PER_EXTRA_BOT * Math.max(0, botCount - CFG2.BOTS),
     pops: [],                    // { c, r, text, at }
+    bursts: [],                  // { c, r, at } little explosions where a snake crashed
     best: CFG2.START_VALUE,
     result: null,                // 'won' | 'crash' | 'time'
     tickCount: 0,
   };
-  while (G.snacks.length < CFG2.SNACKS_ON_FIELD) addSnack(G);
+  while (G.snacks.length < G.snackTarget) addSnack(G);
   return G;
 }
 
@@ -99,6 +104,30 @@ function bodyPops(G, s, collapse, eaten, now) {
   G.pops.push({ c: h.c, r: h.r, text: popLabel(collapse.from, eaten, collapse.to), at: now });
 }
 
+// What a body symbol is worth: I is 1, V is 5, IV is 4, XL is 40.
+function tokenValue(text) {
+  return fromRoman(text);
+}
+
+// A crashed snake breaks apart in a small explosion. Each body symbol becomes a coin of
+// its own value, thrown to a free cell within SHATTER_RADIUS of where the head crashed.
+// The coins carry their start point and time so the renderer can fly them out.
+function shatter(G, s, now) {
+  const head = snakeHead(s);
+  G.bursts.push({ c: head.c, r: head.r, at: now });
+  const blocked = allBodyCells(G);
+  for (const sn of G.snacks) blocked.add(cellKey(sn.c, sn.r));
+  const tokens = numeralTokens(s.value);
+  for (let i = 0; i < tokens.length; i++) {
+    if (G.snacks.length >= CFG2.MAX_SNACKS) break;
+    const from = s.cells[Math.min(i, s.cells.length - 1)];
+    const spot = freeCellNear(G.rng, head, CFG2.SHATTER_RADIUS, blocked);
+    if (!spot) continue;
+    blocked.add(cellKey(spot.c, spot.r));
+    G.snacks.push({ c: spot.c, r: spot.r, value: tokenValue(tokens[i].text), piece: true, fromC: from.c, fromR: from.r, born: now });
+  }
+}
+
 // Put a crashed bot back as I, far enough from the player to be fair.
 function respawnBot(G, bot) {
   const blocked = allBodyCells(G);
@@ -141,13 +170,10 @@ function stepGame(G, now) {
   for (const d of dead) {
     const s = d.snake;
     s.alive = false;
+    shatter(G, s, now);   // the crashed snake breaks apart, you or a bot
     if (s.isPlayer) {
       events.push({ type: 'crash', reason: d.reason });
     } else {
-      // A crashed bot's body becomes I snacks, and it comes back after a delay.
-      for (const c of s.cells) {
-        if (G.snacks.length < CFG2.MAX_SNACKS) G.snacks.push({ c: c.c, r: c.r, value: 1 });
-      }
       s.respawnAt = now + CFG2.BOT_RESPAWN_MS;
       events.push({ type: 'crash', reason: d.reason, bot: s.name });
     }
@@ -180,7 +206,7 @@ function stepGame(G, now) {
         events.push({ type: 'won' });
         return events;
       }
-      addSnack(G);
+      if (G.snacks.length < G.snackTarget) addSnack(G);
     }
   }
 
@@ -192,9 +218,10 @@ function stepGame(G, now) {
 
   // Keep the field stocked, and drop any stale snacks that landed under a body.
   G.snacks = G.snacks.filter(sn => !G.snakes.some(s => s.alive && s.cells.some(c => c.c === sn.c && c.r === sn.r)));
-  while (G.snacks.length < CFG2.SNACKS_ON_FIELD) addSnack(G);
+  while (G.snacks.length < G.snackTarget) addSnack(G);
 
   G.pops = G.pops.filter(p => now - p.at < 900);
+  G.bursts = G.bursts.filter(b => now - b.at < CFG2.BURST_MS);
   return events;
 }
 

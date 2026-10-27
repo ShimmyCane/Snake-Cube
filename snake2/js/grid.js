@@ -37,6 +37,19 @@ function makeRng(seed) {
   };
 }
 
+// A free playable cell within `radius` of `centre`, not in `blocked`. Null if none turns up.
+function freeCellNear(rng, centre, radius, blocked) {
+  for (let i = 0; i < 80; i++) {
+    const dc = Math.round((rng() * 2 - 1) * radius);
+    const dr = Math.round((rng() * 2 - 1) * radius);
+    if (Math.hypot(dc, dr) > radius) continue;
+    const c = centre.c + dc, r = centre.r + dr;
+    if (isWall(c, r) || blocked.has(cellKey(c, r))) continue;
+    return { c, r };
+  }
+  return null;
+}
+
 // A random free playable cell that is not in `blocked` (a Set of cell keys).
 // Returns null if the board is too full to find one.
 function randomFreeCell(rng, blocked) {

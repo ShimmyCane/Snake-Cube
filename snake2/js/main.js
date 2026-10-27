@@ -16,16 +16,19 @@ const ctx = canvas.getContext('2d');
 const miniCanvas = $('minimap');
 const miniCtx = miniCanvas.getContext('2d');
 
-// Canvas sized to the screen, sharp on high-DPI phones.
+// Canvas sized to the screen, sharp on high-DPI phones. The cell size is fixed, so a bigger
+// screen shows more map, and the minimap grows with it.
+let sized = { w: 0, h: 0, dpr: 0 };
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const w = window.innerWidth, h = window.innerHeight;
+  sized = { w, h, dpr };
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const mini = Math.min(120, Math.floor(w * 0.28));
+  const mini = minimapSizeFor(w, h);
   miniCanvas.width = Math.floor(mini * dpr);
   miniCanvas.height = Math.floor(mini * dpr);
   miniCanvas.style.width = mini + 'px';
@@ -33,8 +36,15 @@ function resize() {
   miniCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
+// iPhones and iPads report their size late (toolbars, rotation). Besides the resize events,
+// the frame loop checks the size every frame, so the board never draws at a stale size.
+function sizeChanged() {
+  return sized.w !== window.innerWidth || sized.h !== window.innerHeight
+    || sized.dpr !== (window.devicePixelRatio || 1);
+}
+
 function startRound(mode) {
-  G = createGame({ mode, snackSet: settings.snackSet, seed: Date.now() });
+  G = createGame({ mode, snackSet: settings.snackSet, bots: clampBots(settings.bots), seed: Date.now() });
   G.state = 'countdown';
   roundEnded = false;
   paused = false;
@@ -54,7 +64,6 @@ function onEvents(events) {
   for (const e of events) {
     if (e.type === 'crash' && e.bot) flash(e.bot + ' crashed');
     if (e.type === 'botRespawn') { /* quiet: bots come back on their own */ }
-    if (e.type === 'over' || e.type === 'won') endRound();
   }
 }
 
@@ -93,16 +102,24 @@ function frame(now) {
       acc -= CFG2.TICK_MS;
       onEvents(stepGame(G, now));
     }
-    if (G.state === 'over' || G.state === 'won') endRound();
   }
 
+  // After a crash or a win, hold a moment so the explosion and the thrown coins show,
+  // then fade into the end screen.
+  if ((G.state === 'over' || G.state === 'won') && !roundEnded) {
+    if (G.endAt == null) G.endAt = now;
+    const hold = G.result === 'crash' ? CFG2.END_HOLD_MS : 500;
+    if (now - G.endAt >= hold) endRound();
+  }
+
+  if (sizeChanged()) resize();
   const view = viewCells(window.innerWidth, window.innerHeight, cellSizeFor(window.innerWidth, window.innerHeight));
   const cellPx = cellSizeFor(window.innerWidth, window.innerHeight);
   updateCamera(cam, G, view);
   ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
   const t = G.state === 'playing' && !paused ? Math.min(1, acc / CFG2.TICK_MS) : 1;
   renderBoard(ctx, G, cam, cellPx, view, t, now);
-  miniCtx.clearRect(0, 0, 200, 200);
+  miniCtx.clearRect(0, 0, 300, 300);
   renderMinimap(miniCtx, G, parseFloat(miniCanvas.style.width) || 110);
   updateHud(G, settings);
 }
@@ -110,6 +127,8 @@ function frame(now) {
 function boot() {
   resize();
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
   $('btn-timed').addEventListener('click', () => startRound('timed'));
   $('btn-endless').addEventListener('click', () => startRound('endless'));

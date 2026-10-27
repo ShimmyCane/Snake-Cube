@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Snake II · Roman Numerals</title>
   <link rel="stylesheet" href="css/snake2.css">
@@ -20,7 +20,7 @@
     <div class="hud-arabic hidden" id="v-arabic"></div>
   </div>
   <div class="hud-right">
-    <div class="hud-timer" id="v-timer">3:00</div>
+    <div class="hud-timer" id="v-timer">III:N</div>
     <div class="hud-best">best <span id="v-best">I</span></div>
     <button class="hud-btn" id="btn-pause" aria-label="Pause">II</button>
   </div>
@@ -29,18 +29,19 @@
 <div id="flash" class="flash hidden"></div>
 
 <div id="dpad" class="dpad hidden" aria-label="Turn controls">
-  <button class="dpad-btn dpad-up" data-dir="up" aria-label="Up">▲</button>
-  <button class="dpad-btn dpad-left" data-dir="left" aria-label="Left">◀</button>
-  <button class="dpad-btn dpad-right" data-dir="right" aria-label="Right">▶</button>
-  <button class="dpad-btn dpad-down" data-dir="down" aria-label="Down">▼</button>
+  <button class="dpad-btn dpad-up" data-dir="up" aria-label="Up (W)">▲<span class="k">W</span></button>
+  <button class="dpad-btn dpad-left" data-dir="left" aria-label="Left (A)">◀<span class="k">A</span></button>
+  <button class="dpad-btn dpad-right" data-dir="right" aria-label="Right (D)">▶<span class="k">D</span></button>
+  <button class="dpad-btn dpad-down" data-dir="down" aria-label="Down (S)">▼<span class="k">S</span></button>
 </div>
 
 <!-- ── Start menu ── -->
 <section id="s-menu" class="screen hidden">
+  <a class="snake1" href="../index.html">← SNAKE I<small>Felix's Snake Cubes</small></a>
   <h1 class="title">SNAKE II</h1>
   <p class="subtitle">Count with the Romans</p>
   <div class="stone-wall menu-wall">
-    <button class="stone s1" id="btn-timed" style="--c:#00b894">TIMED<br><small>3:00</small></button>
+    <button class="stone s1" id="btn-timed" style="--c:#00b894">TIMED<br><small>III minutes</small></button>
     <button class="stone s2" id="btn-endless" style="--c:#6c5ce7">ENDLESS<br><small>until MMXXI</small></button>
   </div>
   <button class="link-btn" id="btn-settings">⚙ Settings</button>
@@ -50,7 +51,6 @@
     <div class="best-title">Best · endless</div>
     <div id="best-endless" class="best-list"></div>
   </div>
-  <a class="link-btn" href="../index.html">← Felix's Snake Cubes</a>
 </section>
 
 <!-- ── Settings ── -->
@@ -65,6 +65,14 @@
       <button data-snack="imperial">Imperial</button>
     </div>
     <small class="hint">Classic is I · V · X. Extended and Imperial add bigger coins, so Endless is quicker.</small>
+  </div>
+  <div class="row">
+    <span>Rival snakes</span>
+    <div class="stepper">
+      <button id="bots-minus" aria-label="Fewer rivals">−</button>
+      <span id="bots-val" class="stepper-val">III</span>
+      <button id="bots-plus" aria-label="More rivals">+</button>
+    </div>
   </div>
   <label class="row"><span>Music</span><input type="checkbox" id="set-music"></label>
   <label class="row"><span>Start-of-round hint</span><input type="checkbox" id="set-hint"></label>
@@ -81,6 +89,7 @@
   <h2 class="title small">Paused</h2>
   <button class="stone s3" id="btn-resume">RESUME</button>
   <button class="link-btn" id="btn-quit">Quit to menu</button>
+  <a class="link-btn" href="../index.html">← Snake I</a>
 </section>
 
 <!-- ── Game over / win ── -->

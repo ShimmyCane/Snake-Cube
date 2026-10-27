@@ -3,10 +3,16 @@
 //  The board is bigger than a phone screen (plan section 9).
 // ════════════════════════════════════════════════════════════════════
 
-// Cell size that keeps about 15 cells across and 22 down, within the limits.
+// Cells are the same size on every device, so tiles, coins and buttons look the same on an
+// iPhone, an iPad and a laptop. A bigger screen simply shows more of the map.
 function cellSizeFor(width, height) {
-  const fit = Math.floor(Math.min(width / 15, height / 22));
-  return Math.max(CFG2.CELL_PX_MIN, Math.min(CFG2.CELL_PX_MAX, fit));
+  return CFG2.CELL_PX;
+}
+
+// The minimap grows with the screen: 110 px on a phone, up to 260 px on a big one.
+function minimapSizeFor(width, height) {
+  const size = Math.floor(Math.min(width, height) * 0.28);
+  return Math.max(CFG2.MINI_PX_MIN, Math.min(CFG2.MINI_PX_MAX, size));
 }
 
 // Cells that fit on screen at this cell size.

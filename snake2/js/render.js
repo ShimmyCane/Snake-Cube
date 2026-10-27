@@ -52,22 +52,68 @@ function drawWalls(ctx, cam, cellPx, view) {
   }
 }
 
+// White text on the dark symbol colours, ink on the light ones.
+function textColourFor(text) {
+  const c = text[0];
+  return c === 'X' || c === 'L' || c === 'C' || c === 'D' ? '#ffffff' : INK;
+}
+
+// Coins carry the colour of their symbol, so I, V, X, L, C, D and M read at a glance.
+// A crashed snake's pieces fly out from where the body was: eased, with a little arc.
 function drawSnacks(ctx, G, cam, cellPx, now) {
   const bob = Math.sin(now / 260) * cellPx * 0.04;
   for (const sn of G.snacks) {
-    const cx = (sn.c + 0.5 - cam.x) * cellPx;
-    const cy = (sn.r + 0.5 - cam.y) * cellPx + bob;
-    const rad = cellPx * 0.38;
-    ctx.fillStyle = COIN;
-    ctx.strokeStyle = COIN_EDGE;
-    ctx.lineWidth = 2;
+    let c = sn.c, r = sn.r, lift = 0;
+    if (sn.piece) {
+      const p = Math.min(1, (now - sn.born) / CFG2.SHATTER_FLY_MS);
+      const ease = 1 - Math.pow(1 - p, 3);
+      c = sn.fromC + (sn.c - sn.fromC) * ease;
+      r = sn.fromR + (sn.r - sn.fromR) * ease;
+      lift = Math.sin(Math.PI * p) * cellPx * 0.7;
+    }
+    const cx = (c + 0.5 - cam.x) * cellPx;
+    const cy = (r + 0.5 - cam.y) * cellPx + bob - lift;
+    const text = toRoman(sn.value);
+    const rad = cellPx * 0.4;
+    ctx.fillStyle = symbolColour(text);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = INK;
-    ctx.font = `bold ${Math.round(cellPx * 0.42)}px Georgia, serif`;
+    // A thin gold rim marks it as a coin
+    ctx.strokeStyle = COIN;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, rad - 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = textColourFor(text);
+    ctx.font = `bold ${Math.round(cellPx * (text.length === 2 ? 0.34 : 0.45))}px Georgia, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(toRoman(sn.value), cx, cy + 1);
+    ctx.fillText(text, cx, cy + 1);
   }
+}
+
+// The small explosion where a snake crashed: a ring and a few sparks.
+function drawBursts(ctx, G, cam, cellPx, now) {
+  for (const b of G.bursts) {
+    const age = (now - b.at) / CFG2.BURST_MS;
+    if (age < 0 || age >= 1) continue;
+    const cx = (b.c + 0.5 - cam.x) * cellPx;
+    const cy = (b.r + 0.5 - cam.y) * cellPx;
+    ctx.globalAlpha = 1 - age;
+    ctx.strokeStyle = '#ff9f1c';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(cx, cy, cellPx * (0.4 + age * CFG2.SHATTER_RADIUS), 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#fff8e1';
+    ctx.lineWidth = 3;
+    for (let k = 0; k < 8; k++) {
+      const ang = (k / 8) * Math.PI * 2 + 0.3;
+      const r0 = cellPx * (0.3 + age * 1.6), r1 = r0 + cellPx * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0);
+      ctx.lineTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 
 // Eyes look the way the snake is heading.
@@ -112,8 +158,7 @@ function drawCell(ctx, s, i, text, cam, cellPx, t) {
   ctx.fill();
   ctx.stroke();
 
-  const light = text[0] === 'X' || text[0] === 'L' || text[0] === 'C' || text[0] === 'D';
-  ctx.fillStyle = light ? '#ffffff' : INK;
+  ctx.fillStyle = textColourFor(text);
   // Two-letter ligatures get a smaller font so they fit one cell. On the head, the
   // letter sits low and the eyes high, so the head still reads as part of the number.
   const font = text.length === 2 ? 0.4 : 0.55;
@@ -157,6 +202,7 @@ function renderBoard(ctx, G, cam, cellPx, view, t, now) {
   drawWalls(ctx, cam, cellPx, view);
   drawSnacks(ctx, G, cam, cellPx, now);
   for (const s of G.snakes) if (s.alive) drawSnake(ctx, G, s, cam, cellPx, t);
+  drawBursts(ctx, G, cam, cellPx, now);
   drawPops(ctx, G, cam, cellPx, now);
 }
 

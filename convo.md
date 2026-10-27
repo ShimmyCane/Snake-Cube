@@ -192,3 +192,14 @@ The full plan is in `snake2/schematic_snake2.md`. It still has four small open q
 - The main game's OTHERS screen has a "Snake II" link.
 - Two corrections to the schematic: a III → IV collapse drops one cell (III is 3 long, IV is 2), not two. The pop label is `III + I → IV`, which shows the sum and the rewrite.
 - Still untested: on a real phone, the feel of swipes and the d-pad, and the bot wreck balance over full rounds.
+
+### Snake II, after the first iPhone test (2026-10-27)
+
+- **Zoom:** 35 px cells, about 35% bigger.
+- **Same components on every device.** Bigger screens show more map instead, and the minimap scales up. The screen size is re-checked every frame.
+- **Coin colours** by symbol. **Rival snakes** setting, 1 to 10, default 3.
+- **Pad** in the lower left, labelled W / A / S / D. The lower right is free for skill buttons later.
+- **Bites:** not built. I used your alternative: any crashing snake breaks apart, and its symbols are thrown as coins of the same value within 3 cells. Your own crash fades into game over.
+- **Balance to watch:** coin values are conserved, so a big snake that crashes drops big coins (an M is worth 1000). If that makes games too easy, cap the piece value or make the pieces I coins.
+- **Roman only:** the clock, scores and best lists. Zero is N (nulla), so 3:00 is III:N.
+- **Homepage:** a "← Snake I" button back to the first game.

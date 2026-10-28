@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Felix Snake Cube — Map Builder 2.0 (Real World)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: #1a1a2e; color: #e0e0e0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; overflow: hidden; user-select: none; -webkit-user-select: none; }
+#toolbar { background: #0d0d1a; border-bottom: 1px solid #2a2a3e; padding: 7px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+#toolbar h1 { color: #00f5c4; font-size: 0.72rem; letter-spacing: 3px; white-space: nowrap; }
+#toolbar h1 small { color: #ff6b35; letter-spacing: 1px; }
+.sep { width: 1px; background: #2a2a3e; height: 22px; flex-shrink: 0; }
+button, select { background: #1a1a2e; color: #999; border: 1px solid #333; border-radius: 3px; padding: 6px 10px; font-family: inherit; font-size: 0.66rem; cursor: pointer; letter-spacing: .5px; white-space: nowrap; }
+button:hover:not(:disabled), select:hover { border-color: #00f5c4; color: #00f5c4; }
+button:disabled { opacity: .35; cursor: default; }
+button.active { background: #00f5c4; color: #000; border-color: #00f5c4; font-weight: bold; }
+button.active:hover:not(:disabled) { color: #000; }
+button.accent { border-color: #00f5c4; color: #00f5c4; }
+button.hot { background: #ff6b35; color: #000; border-color: #ff6b35; font-weight: bold; }
+button.danger { border-color: #ff4444; color: #ff4444; }
+input[type=number], input[type=text], input[type=search] { background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 3px; padding: 5px 7px; font-family: inherit; font-size: 0.7rem; width: 74px; user-select: text; -webkit-user-select: text; }
+input[type=text], input[type=search] { width: 100%; }
+input:focus { outline: none; border-color: #00f5c4; }
+input[type=range] { width: 100%; accent-color: #00f5c4; }
+
+#main { flex: 1; display: flex; min-height: 0; }
+#panel { width: 310px; flex-shrink: 0; background: #0d0d1a; border-right: 1px solid #2a2a3e; overflow-y: auto; padding: 10px 12px 70px; font-size: 0.64rem; line-height: 1.5; }
+#panel h2 { color: #00f5c4; font-size: 0.64rem; letter-spacing: 2px; margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #22223a; }
+#panel h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+#panel .row { display: flex; gap: 6px; align-items: center; margin: 5px 0; flex-wrap: wrap; }
+#panel .row > label { color: #777; min-width: 78px; }
+#panel .row > button { flex: 1; }
+#panel .note { color: #666; font-size: 0.58rem; }
+#panel .chk { display: flex; gap: 6px; align-items: center; margin: 4px 0; color: #aaa; cursor: pointer; }
+#panel .chk input { accent-color: #00f5c4; width: 16px; height: 16px; }
+#results { margin-top: 4px; }
+#results div { padding: 6px; border: 1px solid #22223a; margin-top: 3px; cursor: pointer; color: #aaa; border-radius: 3px; }
+#results div:hover { border-color: #00f5c4; color: #00f5c4; }
+#stage { flex: 1; position: relative; min-width: 0; }
+.view { position: absolute; inset: 0; display: none; }
+.view.on { display: block; }
+#map { background: #0e0e1a; }
+#edit-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+#three-canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+#status { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.78); border: 1px solid #2a2a3e; border-radius: 4px; padding: 6px 10px; font-size: 0.6rem; color: #8aa; z-index: 500; max-width: 70%; pointer-events: none; }
+#hint { position: absolute; left: 10px; bottom: 10px; background: rgba(0,0,0,.7); border: 1px solid #2a2a3e; border-radius: 4px; padding: 6px 10px; font-size: 0.56rem; color: #667; z-index: 500; pointer-events: none; max-width: 60%; }
+#switcher { position: fixed; right: 12px; bottom: 12px; z-index: 2000; display: flex; gap: 8px; }
+#switcher a { background: #0d0d1a; border: 1px solid #00f5c4; color: #00f5c4; text-decoration: none; border-radius: 4px; padding: 9px 14px; font-size: 0.66rem; letter-spacing: 1px; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#switcher a:hover { background: #00f5c4; color: #000; }
+.leaflet-container { font-family: inherit; }
+.pin-icon { font-size: 26px; line-height: 26px; text-shadow: 0 2px 4px #000; }
+@media (max-width: 820px) {
+  #main { flex-direction: column-reverse; }
+  #panel { width: 100%; height: 42%; border-right: 0; border-top: 1px solid #2a2a3e; }
+  #hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <a href="index.html" style="color:#888;text-decoration:none;font-size:0.62rem;border:1px solid #333;border-radius:3px;padding:4px 9px">🏠 GAME</a>
+  <h1>MAP BUILDER <small>2.0 · REAL WORLD</small></h1>
+  <div class="sep"></div>
+  <button class="stage-btn active" data-stage="map">① LOCATE</button>
+  <button class="stage-btn" data-stage="edit" disabled>② EDIT</button>
+  <button class="stage-btn" data-stage="3d" disabled>③ 3D PREVIEW</button>
+</div>
+
+<div id="main">
+  <div id="panel">
+
+    <!-- ───────── LOCATE ───────── -->
+    <div id="p-map">
+      <h2>1 · FIND A PLACE</h2>
+      <div class="row"><input type="search" id="q" placeholder="Address, city, landmark…" autocomplete="off"></div>
+      <div class="row"><button id="btn-search" class="accent">SEARCH</button><button id="btn-here">📍 MY LOCATION</button></div>
+      <div id="results"></div>
+      <p class="note">Or pan the map and tap it to drop the pin.</p>
+
+      <h2>2 · MAP LAYER</h2>
+      <div class="row">
+        <button class="layer-btn active" data-layer="sat">SATELLITE</button>
+        <button class="layer-btn" data-layer="street">STREET</button>
+        <button class="layer-btn" data-layer="carto">CLEAN</button>
+      </div>
+
+      <h2>3 · CUT-OUT SHAPE</h2>
+      <div class="row">
+        <button class="shape-btn active" data-shape="circle">⬤ CIRCLE</button>
+        <button class="shape-btn" data-shape="square">■ SQUARE</button>
+        <button class="shape-btn" data-shape="poly">⬠ POLYGON</button>
+      </div>
+      <div class="row" id="row-size"><label>Radius (m)</label><input type="number" id="size" value="200" min="40" max="1500" step="10"></div>
+      <div class="row" id="row-poly" style="display:none">
+        <button id="btn-poly-draw" class="accent">✎ DRAW</button>
+        <button id="btn-poly-done">✓ CLOSE</button>
+        <button id="btn-poly-undo">↶ POINT</button>
+      </div>
+      <p class="note" id="shape-info">Drop a pin to begin.</p>
+
+      <h2>4 · WHAT TO PULL</h2>
+      <label class="chk"><input type="checkbox" id="c-bld" checked> Buildings (OSM footprints + heights)</label>
+      <label class="chk"><input type="checkbox" id="c-road" checked> Streets</label>
+      <label class="chk"><input type="checkbox" id="c-path"> …including footpaths</label>
+      <label class="chk"><input type="checkbox" id="c-tree" checked> Trees &amp; parks</label>
+      <div class="row"><label>Ground</label>
+        <select id="tex"><option value="sat">Satellite photo</option><option value="street">Street map</option><option value="mix">Satellite + street lines</option></select>
+      </div>
+      <div class="row"><label>Cell size (m)</label><input type="number" id="cellm" value="3" min="1" max="20" step="0.5">
+        <span class="note">≈ one car width</span></div>
+      <div class="row"><label>Height ×</label><input type="number" id="hmul" value="1" min="0.25" max="4" step="0.25">
+        <span class="note">exaggerate</span></div>
+      <label class="chk"><input type="checkbox" id="c-wall" checked> Wall off everything outside the shape</label>
+      <div class="row"><button id="btn-bake" class="hot" disabled>⬇ PULL DATA &amp; BAKE TEXTURE</button></div>
+      <p class="note">Imagery: Esri World Imagery / OpenStreetMap / CARTO. 3D data: OpenStreetMap via Overpass (heights come from the <i>height</i> and <i>building:levels</i> tags; untagged buildings default to 2 floors). Google's 3D data can't be used — its terms forbid saving it.</p>
+    </div>
+
+    <!-- ───────── EDIT ───────── -->
+    <div id="p-edit" style="display:none">
+      <h2>TOOLS</h2>
+      <div class="row">
+        <button class="tool active" data-tool="select">☝ SELECT</button>
+        <button class="tool" data-tool="tree">🌳 TREE</button>
+        <button class="tool" data-tool="qblock">▣ BLOCK</button>
+      </div>
+      <div class="row">
+        <button class="tool" data-tool="block">⬠ DRAW BLOCK</button>
+        <button class="tool" data-tool="erase">✕ ERASE</button>
+      </div>
+      <div class="row" id="row-finish" style="display:none">
+        <button id="btn-finish" class="accent">✓ FINISH SHAPE</button><button id="btn-cancel">CANCEL</button>
+      </div>
+      <div class="row"><label>Block h (cells)</label><input type="number" id="bh" value="2" min="0" max="30" step="1"></div>
+      <div class="row"><label>Quick block</label><input type="number" id="qb" value="3" min="1" max="30" step="1"><span class="note">cells wide</span></div>
+      <div class="row"><label>Block look</label>
+        <select id="bstyle"><option value="#b08a5a">Wood-brown</option><option value="#8d949e">Concrete</option><option value="#b5513d">Brick</option><option value="#3a3f4c">Dark wall</option></select>
+      </div>
+      <div class="row"><button id="btn-del" disabled>DELETE SELECTED</button></div>
+      <p class="note" id="sel-info">Nothing selected.</p>
+
+      <h2>TREES</h2>
+      <div class="row"><label>Spacing (m)</label><input type="number" id="tsp" value="9" min="3" max="40" step="1"></div>
+      <div class="row"><label>Where</label>
+        <select id="twhere"><option value="green">Parks &amp; woods only</option><option value="free">Anywhere free</option></select></div>
+      <div class="row"><button id="btn-auto" class="accent">🌲 AUTO-GENERATE TREES</button></div>
+      <div class="row"><button id="btn-clear-trees" class="danger">CLEAR ALL TREES</button></div>
+      <p class="note" id="tree-info"></p>
+
+      <h2>LAYERS</h2>
+      <label class="chk"><input type="checkbox" id="l-bld" checked> Buildings &amp; blocks</label>
+      <label class="chk"><input type="checkbox" id="l-road" checked> Streets</label>
+      <label class="chk"><input type="checkbox" id="l-tree" checked> Trees</label>
+      <label class="chk"><input type="checkbox" id="l-grid"> Cell grid</label>
+
+      <h2>SAVE</h2>
+      <div class="row"><input type="text" id="mapname" placeholder="Map name" value="My place"></div>
+      <div class="row"><button id="btn-undo">↶ UNDO</button><button id="btn-3d">③ 3D</button></div>
+      <div class="row"><button id="btn-save" class="hot">💾 SAVE TO THIS DEVICE</button></div>
+      <div class="row"><button id="btn-dl" class="accent">⬇ DOWNLOAD .JSON</button></div>
+      <p class="note">Saved maps appear in the game under <b>DAD → MY MAPS</b> on this device. The .json can be loaded from the same menu on any device.</p>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="view-map" class="view on"><div id="map" style="position:absolute;inset:0"></div></div>
+    <div id="view-edit" class="view"><canvas id="edit-canvas"></canvas></div>
+    <div id="view-3d" class="view"><canvas id="three-canvas"></canvas></div>
+    <div id="status">Search for a place or tap the map to drop a pin.</div>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<div id="switcher">
+  <a href="map-builder-3.html">3.0 MAZES</a>
+  <a href="map-builder.html" id="back-1">← BACK TO 1.0</a>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/map-store.js"></script>
+<script src="js/builder-common.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  MAP BUILDER 2.0 — real-world maps
+//  LOCATE (Leaflet) → BAKE (tiles + OSM → canvas + objects) → EDIT → SAVE
+//  Output matches the game's map format: 20 image px per grid cell.
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const CAR_PX = 20;
+const LAYERS = {
+  sat:    { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', max: 19, attr: 'Imagery © Esri' },
+  street: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', max: 19, attr: '© OpenStreetMap contributors' },
+  carto:  { url: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', max: 19, attr: '© OpenStreetMap, © CARTO' },
+};
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+
+const S = {
+  stage: 'map',
+  center: null,                 // {lat,lng}
+  shape: 'circle', size: 200,   // radius / half-width in metres
+  poly: [], polyDrawing: false, // [{lat,lng}]
+  baked: null,                  // see bake()
+  objects: [], nextId: 1, selected: null, history: [],
+  tool: 'select', drawing: null,
+  show: { bld: true, road: true, tree: true, grid: false },
+  busy: false,
+};
+const status = t => { $('status').textContent = t; };
+
+// ── Web-mercator helpers ────────────────────────────────────────────
+const mercX = (lng, z) => (lng + 180) / 360 * 256 * Math.pow(2, z);
+const mercY = (lat, z) => {
+  const s = Math.sin(lat * Math.PI / 180);
+  return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * Math.pow(2, z);
+};
+const mPerPx = (lat, z) => 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+const metresToDeg = (lat, m) => ({ dLat: m / 111320, dLng: m / (111320 * Math.cos(lat * Math.PI / 180)) });
+
+// The cut-out as a lat/lng ring (circle → 72-gon)
+function shapeRing() {
+  if (S.shape === 'poly') return S.poly.map(p => [p.lat, p.lng]);
+  if (!S.center) return [];
+  const { lat, lng } = S.center, { dLat, dLng } = metresToDeg(lat, S.size);
+  if (S.shape === 'square')
+    return [[lat + dLat, lng - dLng], [lat + dLat, lng + dLng], [lat - dLat, lng + dLng], [lat - dLat, lng - dLng]];
+  const ring = [];
+  for (let i = 0; i < 72; i++) {
+    const a = i / 72 * Math.PI * 2;
+    ring.push([lat + Math.sin(a) * dLat, lng + Math.cos(a) * dLng]);
+  }
+  return ring;
+}
+function ringReady() { return S.shape === 'poly' ? S.poly.length >= 3 && !S.polyDrawing : !!S.center; }
+
+// ═══════════════════════ LOCATE ═══════════════════════
+const map = L.map('map', { zoomControl: true }).setView([35.68, 139.76], 4);
+let baseLayer = null;
+function setLayer(k) {
+  if (baseLayer) map.removeLayer(baseLayer);
+  baseLayer = L.tileLayer(LAYERS[k].url, { maxZoom: 20, maxNativeZoom: LAYERS[k].max, attribution: LAYERS[k].attr }).addTo(map);
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.toggle('active', b.dataset.layer === k));
+}
+setLayer('sat');
+document.querySelectorAll('.layer-btn').forEach(b => b.addEventListener('click', () => setLayer(b.dataset.layer)));
+
+const pin = L.marker([0, 0], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="pin-icon">📍</div>', iconSize: [26, 26], iconAnchor: [13, 26] }) });
+let shapeLayer = null, polyDots = [];
+pin.on('drag', e => { S.center = e.target.getLatLng(); drawShape(); });
+pin.on('dragend', () => { S.center = pin.getLatLng(); drawShape(); });
+
+function setPin(latlng, zoomTo) {
+  S.center = { lat: latlng.lat, lng: latlng.lng };
+  if (!map.hasLayer(pin)) pin.addTo(map);
+  pin.setLatLng(latlng);
+  if (zoomTo) map.setView(latlng, Math.max(map.getZoom(), 17));
+  drawShape();
+}
+function drawShape() {
+  if (shapeLayer) { map.removeLayer(shapeLayer); shapeLayer = null; }
+  polyDots.forEach(d => map.removeLayer(d)); polyDots = [];
+  const style = { color: '#00f5c4', weight: 2, fillColor: '#00f5c4', fillOpacity: 0.12, dashArray: S.polyDrawing ? '6 4' : null };
+  if (S.shape === 'circle' && S.center) shapeLayer = L.circle([S.center.lat, S.center.lng], Object.assign({ radius: S.size }, style));
+  else if (S.shape === 'square' && S.center) shapeLayer = L.polygon(shapeRing(), style);
+  else if (S.shape === 'poly' && S.poly.length >= 2) shapeLayer = (S.polyDrawing ? L.polyline : L.polygon)(S.poly.map(p => [p.lat, p.lng]), style);
+  if (shapeLayer) shapeLayer.addTo(map);
+  if (S.shape === 'poly') S.poly.forEach(p => polyDots.push(L.circleMarker([p.lat, p.lng], { radius: 5, color: '#00f5c4', fillOpacity: 1 }).addTo(map)));
+  updateShapeInfo();
+}
+function bboxLL() {
+  const r = shapeRing();
+  let n = -90, s = 90, e = -180, w = 180;
+  for (const [la, ln] of r) { n = Math.max(n, la); s = Math.min(s, la); e = Math.max(e, ln); w = Math.min(w, ln); }
+  return { n, s, e, w };
+}
+function updateShapeInfo() {
+  const ok = ringReady();
+  $('btn-bake').disabled = !ok || S.busy;
+  if (!ok) { $('shape-info').textContent = S.shape === 'poly' ? `Polygon: ${S.poly.length} point(s). Tap the map to add, then ✓ CLOSE.` : 'Drop a pin to begin.'; return; }
+  const b = bboxLL(), lat = (b.n + b.s) / 2;
+  const wM = (b.e - b.w) * 111320 * Math.cos(lat * Math.PI / 180), hM = (b.n - b.s) * 111320;
+  $('shape-info').textContent = `Area ≈ ${Math.round(wM)} × ${Math.round(hM)} m  ·  ${Math.round(S.center ? S.center.lat * 1e4 : lat * 1e4) / 1e4}, ${Math.round((S.center ? S.center.lng : (b.e + b.w) / 2) * 1e4) / 1e4}`;
+}
+
+map.on('click', e => {
+  if (S.shape === 'poly') {
+    if (!S.polyDrawing) return;
+    S.poly.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+    drawShape();
+  } else setPin(e.latlng, false);
+});
+map.on('dblclick', () => {});
+map.doubleClickZoom.disable();
+
+document.querySelectorAll('.shape-btn').forEach(b => b.addEventListener('click', () => {
+  S.shape = b.dataset.shape;
+  document.querySelectorAll('.shape-btn').forEach(x => x.classList.toggle('active', x === b));
+  $('row-size').style.display = S.shape === 'poly' ? 'none' : 'flex';
+  $('row-poly').style.display = S.shape === 'poly' ? 'flex' : 'none';
+  $('row-size').firstElementChild.textContent = S.shape === 'square' ? 'Half-width (m)' : 'Radius (m)';
+  if (S.shape === 'poly' && S.poly.length < 3) { S.polyDrawing = true; S.poly = []; }
+  drawShape();
+}));
+$('size').addEventListener('input', e => { S.size = Math.max(20, Math.min(1500, +e.target.value || 200)); drawShape(); });
+$('btn-poly-draw').addEventListener('click', () => { S.poly = []; S.polyDrawing = true; drawShape(); });
+$('btn-poly-done').addEventListener('click', () => {
+  if (S.poly.length < 3) { BK.toast('Need at least 3 points'); return; }
+  S.polyDrawing = false;
+  const c = BK.centroid(S.poly.map(p => [p.lat, p.lng]));
+  S.center = { lat: c[0], lng: c[1] };
+  drawShape();
+});
+$('btn-poly-undo').addEventListener('click', () => { S.poly.pop(); drawShape(); });
+
+async function search() {
+  const q = $('q').value.trim(); if (!q) return;
+  $('results').innerHTML = '<div>Searching…</div>';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q));
+    const j = await r.json();
+    $('results').innerHTML = '';
+    if (!j.length) { $('results').innerHTML = '<div>No results.</div>'; return; }
+    for (const it of j) {
+      const d = document.createElement('div');
+      d.textContent = it.display_name;
+      d.addEventListener('click', () => {
+        $('results').innerHTML = '';
+        const ll = { lat: +it.lat, lng: +it.lon };
+        if (S.shape === 'poly') { map.setView(ll, 17); } else setPin(ll, true);
+        status('Pin dropped. Choose a shape, then PULL DATA & BAKE.');
+      });
+      $('results').appendChild(d);
+    }
+  } catch (e) { $('results').innerHTML = '<div>Search failed: ' + e.message + '</div>'; }
+}
+$('btn-search').addEventListener('click', search);
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+$('btn-here').addEventListener('click', () => {
+  if (!navigator.geolocation) { BK.toast('Geolocation not available'); return; }
+  navigator.geolocation.getCurrentPosition(p => setPin({ lat: p.coords.latitude, lng: p.coords.longitude }, true),
+    err => BK.toast('Location: ' + err.message));
+});
+
+// ═══════════════════════ BAKE ═══════════════════════
+function parseHeight(t) {
+  if (!t) return null;
+  if (t.height) { const v = parseFloat(String(t.height).replace(',', '.')); if (isFinite(v)) return /ft|'/.test(t.height) ? v * 0.3048 : v; }
+  if (t['building:levels']) { const v = parseFloat(t['building:levels']); if (isFinite(v)) return v * 3.2 + 1; }
+  return null;
+}
+const ROAD_W = { motorway: 12, trunk: 11, primary: 10, secondary: 8, tertiary: 7, residential: 6, unclassified: 6, living_street: 5, service: 4, pedestrian: 4, track: 3, footway: 2, path: 2, cycleway: 2.5, steps: 2 };
+const PATHS = new Set(['footway', 'path', 'cycleway', 'steps', 'track', 'bridleway']);
+const GREEN = t => t && (t.leisure === 'park' || t.leisure === 'garden' || t.natural === 'wood' || t.natural === 'scrub' ||
+                         t.landuse === 'forest' || t.landuse === 'grass' || t.leisure === 'nature_reserve' || t.landuse === 'orchard');
+
+async function overpass(bb) {
+  const b = `${bb.s},${bb.w},${bb.n},${bb.e}`;
+  const parts = [];
+  if ($('c-bld').checked) parts.push(`way["building"](${b});`, `relation["building"](${b});`);
+  if ($('c-road').checked) parts.push(`way["highway"](${b});`);
+  if ($('c-tree').checked) parts.push(`node["natural"="tree"](${b});`, `way["natural"="tree_row"](${b});`,
+    `way["leisure"~"park|garden"](${b});`, `way["natural"~"wood|scrub"](${b});`, `way["landuse"~"forest|grass|orchard"](${b});`);
+  if (!parts.length) return { elements: [] };
+  const q = `[out:json][timeout:40];(${parts.join('')});out geom;`;
+  let lastErr;
+  for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error('Overpass failed: ' + (lastErr && lastErr.message));
+}
+
+function loadTile(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+async function paintTiles(ctx, layer, z, mx0, my0, kx, ky, Wm, Hm, label) {
+  const tx0 = Math.floor(mx0 / 256), tx1 = Math.floor((mx0 + Wm) / 256);
+  const ty0 = Math.floor(my0 / 256), ty1 = Math.floor((my0 + Hm) / 256);
+  const jobs = [], n = Math.pow(2, z);
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    if (ty < 0 || ty >= n) continue;
+    jobs.push({ tx, ty, url: layer.url.replace('{z}', z).replace('{x}', ((tx % n) + n) % n).replace('{y}', ty).replace('{s}', 'a') });
+  }
+  let done = 0, failed = 0;
+  const worker = async () => {
+    while (jobs.length) {
+      const j = jobs.pop();
+      const im = await loadTile(j.url);
+      if (im) ctx.drawImage(im, (j.tx * 256 - mx0) * kx, (j.ty * 256 - my0) * ky, 256 * kx + 0.6, 256 * ky + 0.6); else failed++;
+      status(`${label}: tile ${++done}/${done + jobs.length}`);
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  return failed;
+}
+
+async function bake() {
+  if (S.busy || !ringReady()) return;
+  S.busy = true; $('btn-bake').disabled = true;
+  try {
+    const bb = bboxLL(), lat0 = (bb.n + bb.s) / 2;
+    // zoom: finest (≤19) that keeps the mosaic ≤ 4096 px
+    let z = 19;
+    while (z > 12 && (mercX(bb.e, z) - mercX(bb.w, z) > 4096 || mercY(bb.s, z) - mercY(bb.n, z) > 4096)) z--;
+    const mx0 = mercX(bb.w, z), my0 = mercY(bb.n, z);
+    const Wm = mercX(bb.e, z) - mx0, Hm = mercY(bb.s, z) - my0;
+    const mpp = mPerPx(lat0, z);
+    const widthM = Wm * mpp, heightM = Hm * mpp;
+    let cellM = Math.max(1, +$('cellm').value || 3);
+    cellM = Math.max(cellM, Math.max(widthM, heightM) / 200);          // ≤ 200 cells → ≤ 4000 px texture
+    const cols = Math.max(8, Math.round(widthM / cellM)), rows = Math.max(8, Math.round(heightM / cellM));
+    const W = cols * CAR_PX, H = rows * CAR_PX, kx = W / Wm, ky = H / Hm;
+    const toPx = (la, ln) => [(mercX(ln, z) - mx0) * kx, (mercY(la, z) - my0) * ky];
+
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#10141b'; ctx.fillRect(0, 0, W, H);
+
+    // 1. ground texture
+    const tex = $('tex').value;
+    let failed = 0;
+    if (tex === 'sat' || tex === 'mix') failed += await paintTiles(ctx, LAYERS.sat, z, mx0, my0, kx, ky, Wm, Hm, 'Satellite');
+    if (tex === 'street') failed += await paintTiles(ctx, LAYERS.carto, z, mx0, my0, kx, ky, Wm, Hm, 'Street map');
+    if (tex === 'mix') { ctx.globalAlpha = 0.38; failed += await paintTiles(ctx, LAYERS.carto, z, mx0, my0, kx, ky, Wm, Hm, 'Street lines'); ctx.globalAlpha = 1; }
+
+    // 2. mask outside the shape
+    const ringPx = shapeRing().map(([la, ln]) => toPx(la, ln));
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W, H);
+    ctx.moveTo(ringPx[0][0], ringPx[0][1]);
+    for (let i = 1; i < ringPx.length; i++) ctx.lineTo(ringPx[i][0], ringPx[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = '#10141b'; ctx.fill('evenodd');
+    ctx.restore();
+
+    // 3. OSM data
+    const objects = [], greens = [];
+    let osmOk = true;
+    status('Asking OpenStreetMap for buildings, streets and trees…');
+    let data = { elements: [] };
+    try { data = await overpass(bb); } catch (e) { osmOk = false; BK.toast(e.message, 5000); }
+    const hmul = Math.max(0.25, +$('hmul').value || 1);
+    const inside = (x, y) => BK.pointInPoly(x, y, ringPx);
+    const addBuilding = (geom, tags) => {
+      const pts = geom.map(g => toPx(g.lat, g.lon));
+      if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
+      if (pts.length < 3) return;
+      const c = BK.centroid(pts);
+      if (!inside(c[0], c[1])) return;
+      const hm = parseHeight(tags) || 6.5;
+      const h = Math.max(1, Math.min(30, Math.round(hm * hmul / cellM)));
+      objects.push({ type: 'building', pts: pts.map(p => [+p[0].toFixed(1), +p[1].toFixed(1)]), height: h, src: 'osm', hm: Math.round(hm) });
+    };
+    for (const el of data.elements) {
+      const t = el.tags || {};
+      if (el.type === 'way' && el.geometry) {
+        if (t.building) addBuilding(el.geometry, t);
+        else if (t.highway && ROAD_W[t.highway] != null && (!PATHS.has(t.highway) || $('c-path').checked)) {
+          const wpx = (t.width ? parseFloat(t.width) || ROAD_W[t.highway] : ROAD_W[t.highway]) / (cellM / CAR_PX);
+          let run = [];
+          const flush = () => { if (run.length >= 2) objects.push({ type: 'road', pts: run, width: +wpx.toFixed(1), src: 'osm', cls: t.highway }); run = []; };
+          for (const g of el.geometry) {
+            const p = toPx(g.lat, g.lon);
+            if (inside(p[0], p[1])) run.push([+p[0].toFixed(1), +p[1].toFixed(1)]); else flush();
+          }
+          flush();
+        } else if (t.natural === 'tree_row') {
+          const pts = el.geometry.map(g => toPx(g.lat, g.lon)), sp = 5 / (cellM / CAR_PX);
+          for (let i = 0; i + 1 < pts.length; i++) {
+            const [a, b] = [pts[i], pts[i + 1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            for (let d = 0; d < len; d += sp) {
+              const x = a[0] + (b[0] - a[0]) * d / len, y = a[1] + (b[1] - a[1]) * d / len;
+              if (inside(x, y)) objects.push({ type: 'tree', x: +x.toFixed(1), y: +y.toFixed(1), src: 'osm' });
+            }
+          }
+        } else if (GREEN(t)) {
+          greens.push(el.geometry.map(g => toPx(g.lat, g.lon)));
+        }
+      } else if (el.type === 'node' && t.natural === 'tree') {
+        const p = toPx(el.lat, el.lon);
+        if (inside(p[0], p[1])) objects.push({ type: 'tree', x: +p[0].toFixed(1), y: +p[1].toFixed(1), src: 'osm' });
+      } else if (el.type === 'relation' && t.building && el.members) {
+        for (const m of el.members) if (m.role === 'outer' && m.geometry) addBuilding(m.geometry, t);
+      }
+    }
+
+    // 4. wall off the outside
+    if ($('c-wall').checked) {
+      const rects = BK.gridToRects((c, r) => !inside((c + 0.5) * CAR_PX, (r + 0.5) * CAR_PX) ? 1 : 0, cols, rows);
+      for (const q of rects) {
+        const x0 = q.c0 * CAR_PX, y0 = q.r0 * CAR_PX, x1 = q.c1 * CAR_PX, y1 = q.r1 * CAR_PX;
+        objects.push({ type: 'building', pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], height: 3, src: 'wall', color: '#3a3f4c' });
+      }
+    }
+
+    S.baked = { canvas: cv, cols, rows, W, H, cellM, z, mpp, ringPx, greens, center: S.center, failed, osmOk };
+    S.objects = objects.map(o => Object.assign(o, { id: S.nextId++ }));
+    S.history = []; S.selected = null; S.drawing = null;
+    const nt = objects.filter(o => o.type === 'tree').length, nb = objects.filter(o => o.type === 'building' && o.src === 'osm').length;
+    const nr = objects.filter(o => o.type === 'road').length;
+    $('mapname').value = $('q').value.trim().split(',')[0] || 'My place';
+    ['edit', '3d'].forEach(s => document.querySelector(`.stage-btn[data-stage="${s}"]`).disabled = false);
+    setStage('edit');
+    status(`Baked ${cols}×${rows} cells (${cellM.toFixed(1)} m each) · 🏠${nb} 🛣${nr} 🌳${nt}` +
+           (failed ? ` · ⚠ ${failed} imagery tile(s) failed` : '') + (osmOk ? '' : ' · ⚠ no OSM data'));
+    $('tree-info').textContent = nt ? `${nt} trees from OpenStreetMap.` : 'No trees in OpenStreetMap here — use AUTO-GENERATE or the TREE tool.';
+    updateSel();
+  } catch (e) {
+    console.error(e); BK.toast('Bake failed: ' + e.message, 6000); status('Bake failed: ' + e.message);
+  } finally { S.busy = false; updateShapeInfo(); }
+}
+$('btn-bake').addEventListener('click', bake);
+
+// ═══════════════════════ EDIT ═══════════════════════
+const ec = $('edit-canvas');
+const vp = BK.makeViewport(ec, $('view-edit'), {
+  draw: drawEdit,
+  claim(ix, iy) {
+    if (S.tool !== 'select') return false;
+    const hit = hitTest(ix, iy);
+    S.selected = hit; updateSel(); vp.redraw();
+    if (hit && hit.type === 'tree') { S.dragging = { o: hit, dx: hit.x - ix, dy: hit.y - iy, moved: false }; return true; }
+    return false;
+  },
+  onDrag(ix, iy) {
+    const d = S.dragging; if (!d) return;
+    if (!d.moved) { snapshot(); d.moved = true; }
+    d.o.x = +(ix + d.dx).toFixed(1); d.o.y = +(iy + d.dy).toFixed(1); vp.redraw();
+  },
+  onDragEnd() { S.dragging = null; },
+  onTap(ix, iy) { editTap(ix, iy); },
+  onHover(ix, iy) { S.hover = { x: ix, y: iy }; if (S.tool === 'qblock' || S.drawing) vp.redraw(); },
+  onDouble() { finishShape(); },
+});
+
+function snapshot() { S.history.push(JSON.stringify(S.objects)); if (S.history.length > 25) S.history.shift(); }
+function undo() { if (!S.history.length) return; S.objects = JSON.parse(S.history.pop()); S.selected = null; S.drawing = null; updateSel(); vp.redraw(); }
+function add(o) { snapshot(); o.id = S.nextId++; S.objects.push(o); S.selected = o; updateSel(); }
+
+function hitTest(ix, iy) {
+  const R = 14 / vp.scale;
+  for (let i = S.objects.length - 1; i >= 0; i--) {
+    const o = S.objects[i];
+    if (o.type === 'tree') { if (S.show.tree && Math.hypot(o.x - ix, o.y - iy) < R) return o; }
+    else if (o.type === 'building') { if (S.show.bld && o.src !== 'wall' && BK.pointInPoly(ix, iy, o.pts)) return o; }
+    else if (o.type === 'road') {
+      if (!S.show.road) continue;
+      for (let j = 0; j < o.pts.length - 1; j++) if (BK.segDist(ix, iy, o.pts[j], o.pts[j + 1]) < Math.max(R * .6, o.width / 2)) return o;
+    }
+  }
+  return null;
+}
+function editTap(ix, iy) {
+  const B = S.baked; if (!B) return;
+  if (S.tool === 'select') { S.selected = hitTest(ix, iy); updateSel(); vp.redraw(); }
+  else if (S.tool === 'tree') { add({ type: 'tree', x: +ix.toFixed(1), y: +iy.toFixed(1), src: 'manual' }); vp.redraw(); }
+  else if (S.tool === 'qblock') {
+    const n = Math.max(1, +$('qb').value || 3) * CAR_PX / 2;
+    const x = Math.round(ix / CAR_PX) * CAR_PX, y = Math.round(iy / CAR_PX) * CAR_PX;
+    add({ type: 'building', pts: [[x - n, y - n], [x + n, y - n], [x + n, y + n], [x - n, y + n]], height: +$('bh').value || 0, src: 'manual', color: $('bstyle').value });
+    vp.redraw();
+  } else if (S.tool === 'block') {
+    if (!S.drawing) S.drawing = { pts: [] };
+    S.drawing.pts.push([ix, iy]); $('row-finish').style.display = 'flex'; vp.redraw();
+  } else if (S.tool === 'erase') {
+    const h = hitTest(ix, iy);
+    if (h) { snapshot(); S.objects = S.objects.filter(o => o !== h); if (S.selected === h) S.selected = null; updateSel(); vp.redraw(); }
+  }
+}
+function finishShape() {
+  const d = S.drawing; S.drawing = null; $('row-finish').style.display = 'none';
+  if (d && d.pts.length >= 3) add({ type: 'building', pts: d.pts.map(p => [+p[0].toFixed(1), +p[1].toFixed(1)]), height: +$('bh').value || 0, src: 'manual', color: $('bstyle').value });
+  vp.redraw();
+}
+$('btn-finish').addEventListener('click', finishShape);
+$('btn-cancel').addEventListener('click', () => { S.drawing = null; $('row-finish').style.display = 'none'; vp.redraw(); });
+
+function setTool(t) {
+  S.tool = t; S.drawing = null; $('row-finish').style.display = 'none';
+  document.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  vp.redraw();
+}
+document.querySelectorAll('.tool').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+$('btn-undo').addEventListener('click', undo);
+$('btn-del').addEventListener('click', () => {
+  if (!S.selected) return; snapshot(); S.objects = S.objects.filter(o => o !== S.selected); S.selected = null; updateSel(); vp.redraw();
+});
+$('bh').addEventListener('input', () => {
+  const o = S.selected;
+  if (o && o.type === 'building') { snapshot(); o.height = Math.max(0, +$('bh').value || 0); vp.redraw(); updateSel(); }
+});
+$('bstyle').addEventListener('change', () => { const o = S.selected; if (o && o.type === 'building' && o.src !== 'wall') { snapshot(); o.color = $('bstyle').value; vp.redraw(); } });
+['bld', 'road', 'tree', 'grid'].forEach(k => $('l-' + k).addEventListener('change', e => { S.show[k] = e.target.checked; vp.redraw(); }));
+window.addEventListener('keydown', e => {
+  if (S.stage !== 'edit' || /INPUT|SELECT/.test(e.target.tagName)) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { undo(); e.preventDefault(); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') $('btn-del').click();
+  else if (e.key === 'Escape') { S.drawing = null; S.selected = null; $('row-finish').style.display = 'none'; updateSel(); vp.redraw(); }
+});
+
+function updateSel() {
+  const o = S.selected;
+  $('btn-del').disabled = !o;
+  if (!o) $('sel-info').textContent = 'Nothing selected.';
+  else if (o.type === 'building') { $('sel-info').textContent = `Building #${o.id} · ${o.src} · height ${o.height} cells` + (o.hm ? ` (~${o.hm} m)` : ''); $('bh').value = o.height; }
+  else if (o.type === 'road') $('sel-info').textContent = `Street #${o.id} · ${o.cls || 'road'}`;
+  else $('sel-info').textContent = `Tree #${o.id} · drag to move`;
+}
+
+function drawEdit(ctx) {
+  const B = S.baked;
+  ctx.fillStyle = '#0e0e1a'; ctx.fillRect(0, 0, vp.w, vp.h);
+  if (!B) return;
+  ctx.save(); ctx.translate(vp.x, vp.y); ctx.scale(vp.scale, vp.scale);
+  ctx.drawImage(B.canvas, 0, 0);
+  if (S.show.grid) {
+    ctx.strokeStyle = 'rgba(0,245,196,.22)'; ctx.lineWidth = 0.6 / vp.scale; ctx.beginPath();
+    for (let x = 0; x <= B.W; x += CAR_PX) { ctx.moveTo(x, 0); ctx.lineTo(x, B.H); }
+    for (let y = 0; y <= B.H; y += CAR_PX) { ctx.moveTo(0, y); ctx.lineTo(B.W, y); }
+    ctx.stroke();
+  }
+  ctx.restore();
+  const sc = vp.scale, T = (x, y) => [x * sc + vp.x, y * sc + vp.y];
+  // roads
+  if (S.show.road) for (const o of S.objects) if (o.type === 'road') {
+    ctx.beginPath(); o.pts.forEach((p, i) => { const q = T(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+    ctx.strokeStyle = o === S.selected ? 'rgba(255,224,51,.9)' : 'rgba(255,224,51,.28)';
+    ctx.lineWidth = Math.max(1.5, o.width * sc); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+  }
+  // buildings (fake extrusion toward the game's NW camera)
+  if (S.show.bld) {
+    const list = S.objects.filter(o => o.type === 'building' && o.pts.length >= 3);
+    for (const o of list) drawBuilding(ctx, o, T, sc, o === S.selected);
+  }
+  if (S.show.tree) for (const o of S.objects) if (o.type === 'tree') {
+    const q = T(o.x, o.y), r = Math.max(4, CAR_PX * 0.6 * sc);
+    ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, 7);
+    ctx.fillStyle = o === S.selected ? 'rgba(80,255,130,.85)' : 'rgba(30,150,60,.75)'; ctx.fill();
+    ctx.strokeStyle = '#0c3c14'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  if (S.drawing && S.drawing.pts.length) {
+    ctx.beginPath(); S.drawing.pts.forEach((p, i) => { const q = T(p[0], p[1]); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+    if (S.hover) { const q = T(S.hover.x, S.hover.y); ctx.lineTo(q[0], q[1]); }
+    ctx.strokeStyle = '#ffaa00'; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    S.drawing.pts.forEach(p => { const q = T(p[0], p[1]); ctx.beginPath(); ctx.arc(q[0], q[1], 4, 0, 7); ctx.fillStyle = '#ffaa00'; ctx.fill(); });
+  }
+  if (S.tool === 'qblock' && S.hover) {
+    const n = (+$('qb').value || 3) * CAR_PX / 2, x = Math.round(S.hover.x / CAR_PX) * CAR_PX, y = Math.round(S.hover.y / CAR_PX) * CAR_PX;
+    const a = T(x - n, y - n), b = T(x + n, y + n);
+    ctx.strokeStyle = '#ffaa00'; ctx.setLineDash([4, 3]); ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); ctx.setLineDash([]);
+  }
+  // scale reference: a snake-sized cell
+  ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(vp.w - 150, 10, 140, 34);
+  ctx.fillStyle = '#00f5c4'; const cs = Math.max(4, CAR_PX * sc); ctx.fillRect(vp.w - 140, 18, cs, cs > 18 ? 18 : cs);
+  ctx.fillStyle = '#9ab'; ctx.font = '10px Courier New'; ctx.textAlign = 'left';
+  ctx.fillText('1 cell ≈ ' + B.cellM.toFixed(1) + ' m', vp.w - 140 + Math.min(cs, 60) + 8, 30);
+}
+function drawBuilding(ctx, o, T, sc, sel) {
+  const h = o.height || 0, offX = -CAR_PX * h * 0.28 * sc, offY = -CAR_PX * h * 0.45 * sc;
+  const base = o.color || (o.src === 'osm' ? '#c9a778' : '#b08a5a');
+  const bot = o.pts.map(p => T(p[0], p[1])), top = bot.map(p => [p[0] + offX, p[1] + offY]), n = bot.length;
+  ctx.lineWidth = 0.8;
+  if (h > 0) for (let i = 0; i < n; i++) {
+    const a = bot[i], b = bot[(i + 1) % n], ta = top[i], tb = top[(i + 1) % n];
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(tb[0], tb[1]); ctx.lineTo(ta[0], ta[1]); ctx.closePath();
+    ctx.fillStyle = 'rgba(40,30,20,.55)'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.stroke();
+  }
+  ctx.beginPath(); top.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+  ctx.fillStyle = base; ctx.globalAlpha = sel ? 0.95 : 0.8; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = sel ? '#fff' : 'rgba(0,0,0,.55)'; ctx.lineWidth = sel ? 2.5 : 1; ctx.stroke();
+}
+
+// ── Auto trees ──────────────────────────────────────────────────────
+$('btn-auto').addEventListener('click', () => {
+  const B = S.baked; if (!B) return;
+  const sp = Math.max(3, +$('tsp').value || 9) / (B.cellM / CAR_PX);   // spacing in image px
+  const greenOnly = $('twhere').value === 'green';
+  if (greenOnly && !B.greens.length) { BK.toast('No parks or woods found here — switch to "Anywhere free".', 4500); return; }
+  const blds = S.objects.filter(o => o.type === 'building').map(o => ({ pts: o.pts, bb: BK.polyBBox(o.pts) }));
+  const roads = S.objects.filter(o => o.type === 'road');
+  const gbb = B.greens.map(g => ({ pts: g, bb: BK.polyBBox(g) }));
+  const existing = S.objects.filter(o => o.type === 'tree');
+  snapshot();
+  let made = 0, rnd = mulberry(Date.now() & 0xffff);
+  for (let y = sp / 2; y < B.H; y += sp) for (let x = sp / 2; x < B.W; x += sp) {
+    const px = x + (rnd() - .5) * sp * .8, py = y + (rnd() - .5) * sp * .8;
+    if (!BK.pointInPoly(px, py, B.ringPx)) continue;
+    if (greenOnly && !gbb.some(g => px >= g.bb.x0 && px <= g.bb.x1 && py >= g.bb.y0 && py <= g.bb.y1 && BK.pointInPoly(px, py, g.pts))) continue;
+    if (blds.some(b => px >= b.bb.x0 - 6 && px <= b.bb.x1 + 6 && py >= b.bb.y0 - 6 && py <= b.bb.y1 + 6 && (BK.pointInPoly(px, py, b.pts)))) continue;
+    if (roads.some(r => r.pts.some((p, i) => i && BK.segDist(px, py, r.pts[i - 1], p) < r.width / 2 + 8))) continue;
+    if (existing.some(t => Math.hypot(t.x - px, t.y - py) < sp * .5)) continue;
+    if (!greenOnly && rnd() > .35) continue;      // thin out open ground
+    const t = { type: 'tree', x: +px.toFixed(1), y: +py.toFixed(1), src: 'auto', id: S.nextId++ };
+    S.objects.push(t); existing.push(t); made++;
+  }
+  $('tree-info').textContent = `Added ${made} trees.`;
+  BK.toast(`Added ${made} trees`); vp.redraw();
+});
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+$('btn-clear-trees').addEventListener('click', () => {
+  if (!S.objects.some(o => o.type === 'tree')) return;
+  if (!confirm('Remove every tree?')) return;
+  snapshot(); S.objects = S.objects.filter(o => o.type !== 'tree'); S.selected = null; updateSel(); vp.redraw();
+});
+
+// ── Save / export ───────────────────────────────────────────────────
+function mapData() {
+  const B = S.baked, name = $('mapname').value.trim() || 'My place';
+  return BK.pack({
+    id: 'world-' + BK.slug(name) + '-' + Date.now().toString(36).slice(-4), name, kind: 'world',
+    canvas: B.canvas, mime: 'image/jpeg', quality: 0.9, carPixels: CAR_PX,
+    gridCols: B.cols, gridRows: B.rows, scale: 1,
+    objects: S.objects.map(({ id, ...rest }) => rest),
+    extra: { cellMeters: +B.cellM.toFixed(2), origin: B.center, attribution: 'Imagery © Esri / © OpenStreetMap contributors / © CARTO' },
+  });
+}
+$('btn-save').addEventListener('click', async () => {
+  if (!S.baked) return;
+  try { const d = mapData(); if (S.savedId) d.id = S.savedId; S.savedId = d.id; await BK.save(d); BK.toast('Saved. Find it in the game: DAD → MY MAPS'); }
+  catch (e) { BK.toast(e.message, 5000); }
+});
+$('btn-dl').addEventListener('click', () => {
+  if (!S.baked) return;
+  const d = mapData(); BK.download(BK.slug(d.name) + '.json', JSON.stringify(d));
+});
+
+// ═══════════════════════ 3D PREVIEW ═══════════════════════
+const T3 = { ready: false, raf: 0 };
+function build3D() {
+  const B = S.baked;
+  const canvas = $('three-canvas');
+  if (!T3.renderer) {
+    T3.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    T3.renderer.outputEncoding = THREE.sRGBEncoding;
+    T3.cam = new THREE.PerspectiveCamera(50, 1, 0.5, 5000);
+    T3.theta = 0.8; T3.phi = 0.95; T3.dist = 120; T3.target = new THREE.Vector3();
+    const ptrs = new Map();
+    canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); });
+    canvas.addEventListener('pointerup', e => ptrs.delete(e.pointerId));
+    canvas.addEventListener('pointercancel', e => ptrs.delete(e.pointerId));
+    canvas.addEventListener('pointermove', e => {
+      if (!ptrs.has(e.pointerId)) return;
+      const old = ptrs.get(e.pointerId);
+      if (ptrs.size === 1) { T3.theta -= (e.clientX - old[0]) * 0.006; T3.phi = Math.max(0.15, Math.min(1.5, T3.phi - (e.clientY - old[1]) * 0.006)); }
+      else {
+        const o2 = [...ptrs.entries()].find(([k]) => k !== e.pointerId)[1], before = Math.hypot(old[0] - o2[0], old[1] - o2[1]);
+        const after = Math.hypot(e.clientX - o2[0], e.clientY - o2[1]);
+        T3.dist = Math.max(10, Math.min(2000, T3.dist * before / Math.max(after, 1)));
+      }
+      ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    });
+    canvas.addEventListener('wheel', e => { e.preventDefault(); T3.dist = Math.max(10, Math.min(2000, T3.dist * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+  }
+  if (T3.scene) { T3.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9ec8e8);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x556677, 0.95));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(-1, 2, -0.6); scene.add(sun);
+  const tex = new THREE.CanvasTexture(B.canvas); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(B.cols, B.rows), new THREE.MeshBasicMaterial({ map: tex }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(B.cols / 2, 0, B.rows / 2); scene.add(ground);
+  const col = o => new THREE.Color(o.color || (o.src === 'osm' ? '#d6bd96' : '#b08a5a'));
+  for (const o of S.objects) {
+    if (o.type !== 'building' || o.pts.length < 3 || !(o.height > 0)) continue;
+    const sh = new THREE.Shape(o.pts.map(p => new THREE.Vector2(p[0] / CAR_PX, p[1] / CAR_PX)));
+    const g = new THREE.ExtrudeGeometry(sh, { depth: o.height, bevelEnabled: false });
+    g.rotateX(Math.PI / 2);
+    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: col(o) }));
+    m.position.y = o.height; scene.add(m);
+  }
+  const trees = S.objects.filter(o => o.type === 'tree');
+  if (trees.length) {
+    const can = new THREE.InstancedMesh(new THREE.SphereGeometry(1.1, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2f8a3c }), trees.length);
+    const trk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12, 0.16, 1.4, 6), new THREE.MeshLambertMaterial({ color: 0x6b4423 }), trees.length);
+    const m4 = new THREE.Matrix4();
+    trees.forEach((t, i) => {
+      m4.makeTranslation(t.x / CAR_PX, 2.0, t.y / CAR_PX); can.setMatrixAt(i, m4);
+      m4.makeTranslation(t.x / CAR_PX, 0.7, t.y / CAR_PX); trk.setMatrixAt(i, m4);
+    });
+    scene.add(can, trk);
+  }
+  T3.scene = scene; T3.target.set(B.cols / 2, 0, B.rows / 2); T3.dist = Math.max(B.cols, B.rows) * 0.9;
+}
+function loop3D() {
+  if (S.stage !== '3d') return;
+  const c = T3.renderer.domElement, w = c.parentElement.clientWidth, h = c.parentElement.clientHeight;
+  if (c.width !== w || c.height !== h) { T3.renderer.setSize(w, h, false); T3.cam.aspect = w / h; T3.cam.updateProjectionMatrix(); }
+  const d = T3.dist, p = T3.phi, t = T3.theta;
+  T3.cam.position.set(T3.target.x + d * Math.sin(t) * Math.cos(p), T3.target.y + d * Math.sin(p), T3.target.z + d * Math.cos(t) * Math.cos(p));
+  T3.cam.lookAt(T3.target);
+  T3.renderer.render(T3.scene, T3.cam);
+  T3.raf = requestAnimationFrame(loop3D);
+}
+$('btn-3d').addEventListener('click', () => setStage('3d'));
+
+// ── Stages ──────────────────────────────────────────────────────────
+function setStage(s) {
+  if (s !== 'map' && !S.baked) return;
+  S.stage = s;
+  document.querySelectorAll('.stage-btn').forEach(b => b.classList.toggle('active', b.dataset.stage === s));
+  $('view-map').classList.toggle('on', s === 'map');
+  $('view-edit').classList.toggle('on', s === 'edit');
+  $('view-3d').classList.toggle('on', s === '3d');
+  $('p-map').style.display = s === 'map' ? '' : 'none';
+  $('p-edit').style.display = s === 'map' ? 'none' : '';
+  cancelAnimationFrame(T3.raf);
+  if (s === 'map') { map.invalidateSize(); $('hint').textContent = 'Tap the map to drop the pin · pinch / scroll to zoom'; }
+  if (s === 'edit') { vp.resize(); if (!S.fitted || S.fitted !== S.baked) { vp.fit(S.baked.W, S.baked.H); S.fitted = S.baked; vp.redraw(); }
+    $('hint').textContent = 'One finger drags the map · two fingers pinch · tap to use the selected tool'; }
+  if (s === '3d') { build3D(); loop3D(); $('hint').textContent = 'Drag to orbit · pinch / scroll to zoom'; }
+}
+document.querySelectorAll('.stage-btn').forEach(b => b.addEventListener('click', () => setStage(b.dataset.stage)));
+$('hint').textContent = 'Tap the map to drop the pin · pinch / scroll to zoom';
+if (location.hash === '#test') window.S = S;
+</script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Felix Snake Cube — Map Builder 3.0 (Mazes)</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: #1a1a2e; color: #e0e0e0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; overflow: hidden; user-select: none; -webkit-user-select: none; }
+#toolbar { background: #0d0d1a; border-bottom: 1px solid #2a2a3e; padding: 7px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+#toolbar h1 { color: #00f5c4; font-size: 0.72rem; letter-spacing: 3px; white-space: nowrap; }
+#toolbar h1 small { color: #bf5fff; letter-spacing: 1px; }
+button, select { background: #1a1a2e; color: #999; border: 1px solid #333; border-radius: 3px; padding: 6px 10px; font-family: inherit; font-size: 0.66rem; cursor: pointer; letter-spacing: .5px; white-space: nowrap; }
+button:hover:not(:disabled), select:hover { border-color: #00f5c4; color: #00f5c4; }
+button:disabled { opacity: .35; cursor: default; }
+button.active { background: #00f5c4; color: #000; border-color: #00f5c4; font-weight: bold; }
+button.active:hover:not(:disabled) { color: #000; }
+button.accent { border-color: #00f5c4; color: #00f5c4; }
+button.hot { background: #ff6b35; color: #000; border-color: #ff6b35; font-weight: bold; }
+button.danger { border-color: #ff4444; color: #ff4444; }
+input[type=number], input[type=text] { background: #111; color: #e0e0e0; border: 1px solid #333; border-radius: 3px; padding: 5px 7px; font-family: inherit; font-size: 0.7rem; width: 74px; user-select: text; -webkit-user-select: text; }
+input[type=text] { width: 100%; }
+input:focus { outline: none; border-color: #00f5c4; }
+input[type=range] { flex: 1; min-width: 90px; accent-color: #00f5c4; }
+input[type=color] { width: 34px; height: 26px; background: none; border: 1px solid #333; padding: 0; }
+
+#main { flex: 1; display: flex; min-height: 0; }
+#panel { width: 310px; flex-shrink: 0; background: #0d0d1a; border-right: 1px solid #2a2a3e; overflow-y: auto; padding: 10px 12px 70px; font-size: 0.64rem; line-height: 1.5; }
+#panel h2 { color: #00f5c4; font-size: 0.64rem; letter-spacing: 2px; margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #22223a; }
+#panel h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+#panel .row { display: flex; gap: 6px; align-items: center; margin: 5px 0; flex-wrap: wrap; }
+#panel .row > label { color: #777; min-width: 86px; }
+#panel .row > button { flex: 1; }
+#panel .note { color: #666; font-size: 0.58rem; }
+#panel .chk { display: flex; gap: 6px; align-items: center; margin: 4px 0; color: #aaa; cursor: pointer; }
+#panel .chk input { accent-color: #00f5c4; width: 16px; height: 16px; }
+.val { color: #00f5c4; min-width: 30px; text-align: right; }
+#stage { flex: 1; position: relative; min-width: 0; }
+#wrap { position: absolute; inset: 0; }
+#cv { position: absolute; top: 0; left: 0; cursor: crosshair; }
+#status { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.78); border: 1px solid #2a2a3e; border-radius: 4px; padding: 6px 10px; font-size: 0.6rem; color: #8aa; z-index: 5; max-width: 62%; pointer-events: none; }
+#hint { position: absolute; left: 10px; bottom: 10px; background: rgba(0,0,0,.7); border: 1px solid #2a2a3e; border-radius: 4px; padding: 6px 10px; font-size: 0.56rem; color: #667; z-index: 5; pointer-events: none; max-width: 60%; }
+#switcher { position: fixed; right: 12px; bottom: 12px; z-index: 2000; display: flex; gap: 8px; }
+#switcher a { background: #0d0d1a; border: 1px solid #00f5c4; color: #00f5c4; text-decoration: none; border-radius: 4px; padding: 9px 14px; font-size: 0.66rem; letter-spacing: 1px; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#switcher a:hover { background: #00f5c4; color: #000; }
+@media (max-width: 820px) {
+  #main { flex-direction: column-reverse; }
+  #panel { width: 100%; height: 44%; border-right: 0; border-top: 1px solid #2a2a3e; }
+  #hint { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <a href="index.html" style="color:#888;text-decoration:none;font-size:0.62rem;border:1px solid #333;border-radius:3px;padding:4px 9px">🏠 GAME</a>
+  <h1>MAP BUILDER <small>3.0 · MAZES</small></h1>
+</div>
+
+<div id="main">
+  <div id="panel">
+    <h2>1 · MAZE IMAGE</h2>
+    <div class="row"><button id="btn-open" class="accent">📂 OPEN IMAGE / PHOTO</button></div>
+    <div class="row"><button id="btn-sample">🎲 SAMPLE MAZE</button><button id="btn-rot">⟳ ROTATE</button></div>
+    <p class="note">JPEG / PNG / screenshot. You can also drop a file on the page or paste an image.</p>
+
+    <h2>2 · CROP</h2>
+    <div class="row"><button id="btn-crop">✂ DRAW CROP BOX</button><button id="btn-apply" disabled>✓ APPLY</button><button id="btn-reset" disabled>RESET</button></div>
+
+    <h2>3 · GENERATE WALLS</h2>
+    <div class="row"><label>Tile (px)</label><input type="number" id="tile" value="8" min="2" max="200"><button id="btn-auto" style="flex:0">AUTO</button></div>
+    <p class="note">One tile becomes one wall block. AUTO measures the line thickness; a smaller tile traces curves better.</p>
+    <div class="row"><label>Dark below</label><input type="range" id="thr" min="40" max="230" value="130"><span class="val" id="v-thr">130</span></div>
+    <div class="row"><label>Solid ≥ %</label><input type="range" id="solidT" min="20" max="95" value="55"><span class="val" id="v-solidT">55</span></div>
+    <div class="row"><label>Hatch ≥ %</label><input type="range" id="hatchT" min="5" max="60" value="14"><span class="val" id="v-hatchT">14</span></div>
+    <label class="chk"><input type="checkbox" id="inv"> Invert (light lines on dark paper)</label>
+    <div class="row"><button id="btn-gen" class="hot" disabled>▶ GENERATE WALLS</button></div>
+    <p class="note">Solid lines → tall walls. Hatching (thin diagonal lines) → textured, lower walls.</p>
+
+    <h2>4 · EDIT WALLS</h2>
+    <div class="row">
+      <button class="tool active" data-tool="solid">■ SOLID</button>
+      <button class="tool" data-tool="hatch">▨ HATCH</button>
+      <button class="tool" data-tool="erase">□ ERASE</button>
+    </div>
+    <div class="row"><label>Brush</label><input type="range" id="brush" min="1" max="6" value="1"><span class="val" id="v-brush">1</span></div>
+    <div class="row"><button id="btn-undo">↶ UNDO</button><button id="btn-clear" class="danger">CLEAR</button><button id="btn-3d" class="">⬒ 3D VIEW</button></div>
+    <p class="note">Drag to paint. Two fingers (or scroll) to pan and zoom. Switch the 3D view on to see the heights.</p>
+
+    <h2>5 · HEIGHT &amp; SCALE</h2>
+    <div class="row"><label>Wall height</label><input type="range" id="hSolid" min="0" max="12" value="4"><span class="val" id="v-hSolid">4</span></div>
+    <div class="row"><label>Hatch height</label><input type="range" id="hHatch" min="0" max="12" value="2"><span class="val" id="v-hHatch">2</span></div>
+    <div class="row"><label>Scale ×</label><input type="range" id="scale" min="1" max="6" value="2"><span class="val" id="v-scale">2</span></div>
+    <p class="note" id="scale-info"></p>
+    <div class="row"><label>Floor</label><input type="color" id="floorc" value="#d8cfae">
+      <label style="min-width:0">Ghost</label><input type="range" id="ghost" min="0" max="100" value="0"><span class="val" id="v-ghost">0</span></div>
+    <p class="note">Scale = game cells per tile. The green snake in the corner is your snake at true size — widen the scale until it fits the corridors comfortably.</p>
+
+    <h2>6 · SAVE</h2>
+    <div class="row"><input type="text" id="mapname" value="My maze"></div>
+    <div class="row"><button id="btn-save" class="hot" disabled>💾 SAVE TO THIS DEVICE</button></div>
+    <div class="row"><button id="btn-dl" class="accent" disabled>⬇ DOWNLOAD .JSON</button></div>
+    <p class="note">Saved mazes appear in the game under <b>DAD → MY MAPS</b> on this device.</p>
+  </div>
+
+  <div id="stage">
+    <div id="wrap"><canvas id="cv"></canvas></div>
+    <div id="status">Open a maze image, or press SAMPLE MAZE.</div>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<div id="switcher">
+  <a href="map-builder-2.html">2.0 REAL WORLD</a>
+  <a href="map-builder.html">← BACK TO 1.0</a>
+</div>
+
+<input type="file" id="file" accept="image/*" style="display:none">
+
+<script src="js/map-store.js"></script>
+<script src="js/builder-common.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  MAP BUILDER 3.0 — mazes
+//  image → crop → tiles (solid / hatch / empty) → wall blocks (extruded)
+//  A tile is the unit. The map is cols×rows tiles; "scale" turns each
+//  tile into scale×scale game cells, which sets how roomy the corridors are.
+// ═══════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const CAR_PX = 20;
+const S = {
+  orig: null,         // canvas: image as loaded (after rotate)
+  work: null,         // canvas: cropped working image
+  crop: null,         // {x0,y0,x1,y1} while drawing a crop box
+  mode: 'view',       // 'view' | 'crop'
+  tile: 8, cols: 0, rows: 0,
+  cells: null,        // Uint8Array cols*rows: 0 floor, 1 solid, 2 hatch
+  history: [],
+  tool: 'solid', brush: 1, painting: false,
+  show3d: false, hover: null,
+};
+const status = t => { $('status').textContent = t; };
+const sl = (id, cb) => { $(id).addEventListener('input', e => { $('v-' + id).textContent = e.target.value; cb && cb(+e.target.value); vp.redraw(); }); };
+
+// ── Image in ────────────────────────────────────────────────────────
+function setImage(imgOrCanvas) {
+  const w = imgOrCanvas.naturalWidth || imgOrCanvas.width, h = imgOrCanvas.naturalHeight || imgOrCanvas.height;
+  // keep very large photos manageable
+  const k = Math.min(1, 2400 / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  c.getContext('2d').drawImage(imgOrCanvas, 0, 0, c.width, c.height);
+  S.orig = c; S.work = c; S.crop = null; S.cells = null; S.cols = S.rows = 0; S.history = [];
+  setMode('view');
+  $('btn-gen').disabled = false; $('btn-reset').disabled = true; $('btn-save').disabled = true; $('btn-dl').disabled = true;
+  vp.fit(c.width, c.height);
+  autoTile();
+  status(`Image ${c.width}×${c.height}px. Crop it, then GENERATE WALLS.`);
+  vp.redraw();
+}
+function loadFile(f) {
+  if (!f || !/^image\//.test(f.type)) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => { setImage(im); URL.revokeObjectURL(url); $('mapname').value = f.name.replace(/\.[^.]+$/, ''); };
+  im.onerror = () => BK.toast('Could not read that image');
+  im.src = url;
+}
+$('btn-open').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
+window.addEventListener('paste', e => { for (const it of (e.clipboardData || {}).items || []) if (it.type.startsWith('image/')) loadFile(it.getAsFile()); });
+$('btn-rot').addEventListener('click', () => {
+  if (!S.work) return;
+  const w = S.work, c = document.createElement('canvas'); c.width = w.height; c.height = w.width;
+  const x = c.getContext('2d'); x.translate(c.width, 0); x.rotate(Math.PI / 2); x.drawImage(w, 0, 0);
+  if (S.orig === S.work) S.orig = c; S.work = c; S.cells = null; vp.fit(c.width, c.height); vp.redraw();
+});
+
+// A sample maze with thick walls and three hatched patches
+$('btn-sample').addEventListener('click', () => {
+  const N = 13, cell = 36, wall = 12, pad = 24, size = pad * 2 + N * cell + wall;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const x = c.getContext('2d');
+  x.fillStyle = '#f4efe0'; x.fillRect(0, 0, size, size);
+  // recursive backtracker
+  const open = new Set(), seen = new Set(), stack = [[0, 0]]; seen.add('0,0');
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  while (stack.length) {
+    const [cx, cy] = stack[stack.length - 1];
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [cx + dx, cy + dy, dx, dy])
+      .filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < N && ny < N && !seen.has(nx + ',' + ny));
+    if (!nb.length) { stack.pop(); continue; }
+    const [nx, ny] = nb[Math.floor(rnd() * nb.length)];
+    seen.add(nx + ',' + ny); open.add(cx + ',' + cy + '|' + nx + ',' + ny); open.add(nx + ',' + ny + '|' + cx + ',' + cy); stack.push([nx, ny]);
+  }
+  x.fillStyle = '#111';
+  const ox = pad, oy = pad;
+  for (let i = 0; i <= N; i++) { x.fillRect(ox, oy + i * cell, N * cell + wall, wall); x.fillRect(ox + i * cell, oy, wall, N * cell + wall); }
+  // knock the openings back out
+  x.fillStyle = '#f4efe0';
+  for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
+    if (open.has(cx + ',' + cy + '|' + (cx + 1) + ',' + cy)) x.fillRect(ox + (cx + 1) * cell, oy + cy * cell + wall, wall, cell - wall);
+    if (open.has(cx + ',' + cy + '|' + cx + ',' + (cy + 1))) x.fillRect(ox + cx * cell + wall, oy + (cy + 1) * cell, cell - wall, wall);
+  }
+  x.fillRect(ox, oy + wall, wall, cell - wall); x.fillRect(ox + N * cell, oy + (N - 1) * cell + wall, wall, cell - wall);   // entrance / exit
+  // hatched patches in three corridors
+  x.save(); x.strokeStyle = '#222'; x.lineWidth = 1.5;
+  for (const [cx, cy] of [[3, 3], [8, 6], [5, 10]]) {
+    x.save(); x.beginPath(); x.rect(ox + cx * cell + wall, oy + cy * cell + wall, cell - wall, cell - wall); x.clip();
+    for (let d = -cell; d < cell * 2; d += 5) { x.beginPath(); x.moveTo(ox + cx * cell + d, oy + cy * cell); x.lineTo(ox + cx * cell + d + cell, oy + cy * cell + cell); x.stroke(); }
+    x.restore();
+  }
+  x.restore();
+  setImage(c); $('mapname').value = 'Sample maze';
+  $('tile').value = 12; S.tile = 12; $('hatchT').value = 14;
+});
+
+// ── Crop ────────────────────────────────────────────────────────────
+function setMode(m) {
+  S.mode = m;
+  $('btn-crop').classList.toggle('active', m === 'crop');
+  $('btn-apply').disabled = !(m === 'crop' && S.crop);
+  $('hint').textContent = m === 'crop' ? 'Drag a box over the maze, then APPLY' : 'Paint walls with one finger · pinch / scroll to zoom';
+}
+$('btn-crop').addEventListener('click', () => {
+  if (!S.work) return;
+  if (S.mode === 'crop') { S.crop = null; setMode('view'); vp.redraw(); return; }
+  S.work = S.orig; S.cells = null; S.crop = null; setMode('crop'); vp.fit(S.work.width, S.work.height); vp.redraw();
+});
+$('btn-apply').addEventListener('click', () => {
+  const c = S.crop; if (!c) return;
+  const x0 = Math.max(0, Math.round(Math.min(c.x0, c.x1))), y0 = Math.max(0, Math.round(Math.min(c.y0, c.y1)));
+  const x1 = Math.min(S.orig.width, Math.round(Math.max(c.x0, c.x1))), y1 = Math.min(S.orig.height, Math.round(Math.max(c.y0, c.y1)));
+  if (x1 - x0 < 16 || y1 - y0 < 16) { BK.toast('Crop box is too small'); return; }
+  const w = document.createElement('canvas'); w.width = x1 - x0; w.height = y1 - y0;
+  w.getContext('2d').drawImage(S.orig, x0, y0, w.width, w.height, 0, 0, w.width, w.height);
+  S.work = w; S.crop = null; S.cells = null; setMode('view');
+  $('btn-reset').disabled = false;
+  vp.fit(w.width, w.height); autoTile(); status(`Cropped to ${w.width}×${w.height}px.`); vp.redraw();
+});
+$('btn-reset').addEventListener('click', () => {
+  S.work = S.orig; S.cells = null; S.crop = null; $('btn-reset').disabled = true; setMode('view'); vp.fit(S.work.width, S.work.height); vp.redraw();
+});
+
+// ── Detection ───────────────────────────────────────────────────────
+function darkMask() {
+  const w = S.work, d = w.getContext('2d').getImageData(0, 0, w.width, w.height).data;
+  const thr = +$('thr').value, inv = $('inv').checked, m = new Uint8Array(w.width * w.height);
+  for (let i = 0, p = 0; i < m.length; i++, p += 4) {
+    const lum = 0.299 * d[p] + 0.587 * d[p + 1] + 0.114 * d[p + 2];
+    const dark = d[p + 3] > 128 && lum < thr;
+    m[i] = (inv ? !dark : dark) ? 1 : 0;
+  }
+  return m;
+}
+function autoTile() {
+  if (!S.work) return;
+  const w = S.work, m = darkMask(), runs = [];
+  const step = Math.max(1, Math.floor(w.height / 120));
+  for (let y = 0; y < w.height; y += step) {
+    let run = 0;
+    for (let x = 0; x <= w.width; x++) {
+      if (x < w.width && m[y * w.width + x]) run++;
+      else { if (run > 1) runs.push(run); run = 0; }
+    }
+  }
+  runs.sort((a, b) => a - b);
+  // wall thickness = the most common short run (lower-middle of the sorted runs)
+  const t = runs.length ? runs[Math.floor(runs.length * 0.4)] : 8;
+  S.tile = Math.max(2, Math.min(200, Math.round(t)));
+  $('tile').value = S.tile;
+}
+$('btn-auto').addEventListener('click', () => { autoTile(); vp.redraw(); });
+$('tile').addEventListener('change', e => { S.tile = Math.max(2, +e.target.value || 8); });
+
+function generate() {
+  if (!S.work) return;
+  S.tile = Math.max(2, +$('tile').value || 8);
+  const w = S.work, T = S.tile, cols = Math.ceil(w.width / T), rows = Math.ceil(w.height / T);
+  if (cols * rows > 90000) { BK.toast(`${cols}×${rows} tiles is too many — raise the tile size.`, 4500); return; }
+  const m = darkMask(), cov = new Float32Array(cols * rows);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    let on = 0, n = 0;
+    for (let y = r * T; y < Math.min(w.height, (r + 1) * T); y++) for (let x = c * T; x < Math.min(w.width, (c + 1) * T); x++) { on += m[y * w.width + x]; n++; }
+    cov[r * cols + c] = on / Math.max(1, n);
+  }
+  const solidT = +$('solidT').value / 100, hatchT = +$('hatchT').value / 100;
+  const cells = new Uint8Array(cols * rows);
+  for (let i = 0; i < cells.length; i++) cells[i] = cov[i] >= solidT ? 1 : cov[i] >= hatchT ? 2 : 0;
+  // hatch must come in patches: a lone "hatch" tile is almost always the soft edge of a solid wall
+  const get = (c, r) => (c < 0 || r < 0 || c >= cols || r >= rows) ? 0 : cells[r * cols + c];
+  const keep = new Uint8Array(cells);
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (cells[r * cols + c] === 2) {
+    let hn = 0, sn = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) { const v = get(c + dx, r + dy); if (v === 2) hn++; else if (v === 1) sn++; }
+    if (hn < 3) keep[r * cols + c] = sn >= 2 ? 1 * (cov[r * cols + c] >= solidT * 0.8 ? 1 : 0) : 0;
+  }
+  snapshot();
+  S.cols = cols; S.rows = rows; S.cells = keep;
+  $('btn-save').disabled = false; $('btn-dl').disabled = false;
+  updateScaleInfo();
+  const cnt = [0, 0, 0]; for (const v of keep) cnt[v]++;
+  status(`${cols}×${rows} tiles · ${cnt[1]} solid · ${cnt[2]} hatch. Touch up with the paint tools.`);
+  vp.redraw();
+}
+$('btn-gen').addEventListener('click', generate);
+['thr', 'solidT', 'hatchT'].forEach(id => sl(id));
+$('inv').addEventListener('change', () => {});
+
+// ── Painting ────────────────────────────────────────────────────────
+function snapshot() { if (S.cells) { S.history.push({ cells: new Uint8Array(S.cells), cols: S.cols, rows: S.rows }); if (S.history.length > 30) S.history.shift(); } }
+$('btn-undo').addEventListener('click', undo);
+function undo() { const h = S.history.pop(); if (!h) return; S.cells = h.cells; S.cols = h.cols; S.rows = h.rows; vp.redraw(); }
+$('btn-clear').addEventListener('click', () => {
+  if (!S.cells) return; if (!confirm('Remove every wall?')) return; snapshot(); S.cells.fill(0); vp.redraw();
+});
+function paintAt(ix, iy) {
+  if (!S.cells) return;
+  const c0 = Math.floor(ix / S.tile), r0 = Math.floor(iy / S.tile), v = S.tool === 'solid' ? 1 : S.tool === 'hatch' ? 2 : 0;
+  const b = S.brush, lo = -Math.floor((b - 1) / 2), hi = Math.floor(b / 2);
+  for (let dy = lo; dy <= hi; dy++) for (let dx = lo; dx <= hi; dx++) {
+    const c = c0 + dx, r = r0 + dy;
+    if (c >= 0 && r >= 0 && c < S.cols && r < S.rows) S.cells[r * S.cols + c] = v;
+  }
+}
+document.querySelectorAll('.tool').forEach(b => b.addEventListener('click', () => {
+  S.tool = b.dataset.tool; document.querySelectorAll('.tool').forEach(x => x.classList.toggle('active', x === b));
+}));
+sl('brush', v => { S.brush = v; });
+$('btn-3d').addEventListener('click', () => { S.show3d = !S.show3d; $('btn-3d').classList.toggle('active', S.show3d); vp.redraw(); });
+
+// ── Height / scale ──────────────────────────────────────────────────
+sl('hSolid'); sl('hHatch'); sl('ghost');
+sl('scale', updateScaleInfo);
+$('floorc').addEventListener('input', () => vp.redraw());
+function corridorCells() {
+  if (!S.cells) return 0;
+  const runs = [];
+  const scan = (n, m, at) => { for (let a = 0; a < n; a++) { let run = 0; for (let b = 0; b <= m; b++) { if (b < m && !at(a, b)) run++; else { if (run) runs.push(run); run = 0; } } } };
+  scan(S.rows, S.cols, (r, c) => S.cells[r * S.cols + c]);
+  scan(S.cols, S.rows, (c, r) => S.cells[r * S.cols + c]);
+  const inner = runs.filter(r => r < Math.max(S.cols, S.rows) * 0.6).sort((a, b) => a - b);
+  return inner.length ? inner[Math.floor(inner.length / 2)] : 0;
+}
+function updateScaleInfo() {
+  const s = +$('scale').value, cor = corridorCells();
+  $('scale-info').textContent = S.cells
+    ? `Map = ${S.cols * s} × ${S.rows * s} game cells. Typical corridor ≈ ${cor * s} snake-width${cor * s === 1 ? '' : 's'}.`
+    : 'Generate walls to see the corridor width.';
+}
+
+// ── Viewport & drawing ──────────────────────────────────────────────
+const vp = BK.makeViewport($('cv'), $('wrap'), {
+  draw: draw,
+  claim(ix, iy) {
+    if (S.mode === 'crop') { S.crop = { x0: ix, y0: iy, x1: ix, y1: iy }; return true; }
+    if (!S.cells || S.show3d) return false;
+    snapshot(); S.painting = true; paintAt(ix, iy); vp.redraw(); return true;
+  },
+  onDrag(ix, iy) {
+    if (S.mode === 'crop' && S.crop) { S.crop.x1 = ix; S.crop.y1 = iy; vp.redraw(); }
+    else if (S.painting) { paintAt(ix, iy); vp.redraw(); }
+  },
+  onDragEnd() { S.painting = false; if (S.mode === 'crop') { $('btn-apply').disabled = !S.crop; updateScaleInfo(); } else updateScaleInfo(); },
+  onHover(ix, iy) { S.hover = { x: ix, y: iy }; if (S.work) vp.redraw(); },
+});
+
+function rectsFor() {
+  if (!S.cells) return [];
+  return BK.gridToRects((c, r) => S.cells[r * S.cols + c], S.cols, S.rows);
+}
+function draw(ctx) {
+  ctx.fillStyle = '#0e0e1a'; ctx.fillRect(0, 0, vp.w, vp.h);
+  if (!S.work) { ctx.fillStyle = '#445'; ctx.font = '13px Courier New'; ctx.textAlign = 'center'; ctx.fillText('Open a maze image to begin', vp.w / 2, vp.h / 2); return; }
+  const img = S.mode === 'crop' ? S.orig : S.work, sc = vp.scale;
+  ctx.save(); ctx.translate(vp.x, vp.y); ctx.scale(sc, sc);
+  ctx.globalAlpha = S.cells ? 0.35 : 1; ctx.drawImage(img, 0, 0); ctx.globalAlpha = 1;
+  ctx.restore();
+  if (S.mode === 'crop') {
+    if (S.crop) {
+      const a = vp.toScr(Math.min(S.crop.x0, S.crop.x1), Math.min(S.crop.y0, S.crop.y1)), b = vp.toScr(Math.max(S.crop.x0, S.crop.x1), Math.max(S.crop.y0, S.crop.y1));
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(0, 0, vp.w, a.y); ctx.fillRect(0, b.y, vp.w, vp.h - b.y); ctx.fillRect(0, a.y, a.x, b.y - a.y); ctx.fillRect(b.x, a.y, vp.w - b.x, b.y - a.y);
+      ctx.strokeStyle = '#00f5c4'; ctx.lineWidth = 2; ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    }
+    return;
+  }
+  if (S.cells) {
+    const T = S.tile, rects = rectsFor();
+    const hS = +$('hSolid').value, hH = +$('hHatch').value;
+    // grid outline of the work area
+    ctx.strokeStyle = 'rgba(0,245,196,.5)'; ctx.lineWidth = 1;
+    const o0 = vp.toScr(0, 0), o1 = vp.toScr(S.cols * T, S.rows * T); ctx.strokeRect(o0.x, o0.y, o1.x - o0.x, o1.y - o0.y);
+    // floor tint
+    ctx.fillStyle = $('floorc').value; ctx.globalAlpha = 0.18; ctx.fillRect(o0.x, o0.y, o1.x - o0.x, o1.y - o0.y); ctx.globalAlpha = 1;
+    const sorted = S.show3d ? rects.slice().sort((a, b) => a.r1 - b.r1) : rects;   // far rows first
+    for (const q of sorted) {
+      const a = vp.toScr(q.c0 * T, q.r0 * T), b = vp.toScr(q.c1 * T, q.r1 * T);
+      const hatch = q.k === 2, h = hatch ? hH : hS;
+      if (S.show3d && h > 0) {
+        const hp = h / (+$('scale').value) * T * sc, ox = -hp * 0.28, oy = -hp * 0.45;
+        ctx.fillStyle = hatch ? '#6b3a22' : '#15151d';
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, a.y); ctx.lineTo(b.x + ox, a.y + oy); ctx.lineTo(a.x + ox, a.y + oy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, b.y); ctx.lineTo(a.x + ox, b.y + oy); ctx.lineTo(a.x + ox, a.y + oy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(b.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x + ox, b.y + oy); ctx.lineTo(b.x + ox, a.y + oy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(a.x, b.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x + ox, b.y + oy); ctx.lineTo(a.x + ox, b.y + oy); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = hatch ? '#c47a4a' : '#4a4a5c'; ctx.fillRect(a.x + ox, a.y + oy, b.x - a.x, b.y - a.y);
+        if (hatch) hatchLines(ctx, a.x + ox, a.y + oy, b.x + ox, b.y + oy);
+      } else {
+        ctx.fillStyle = hatch ? 'rgba(196,122,74,.9)' : 'rgba(20,20,30,.88)';
+        ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+        if (hatch) hatchLines(ctx, a.x, a.y, b.x, b.y);
+      }
+    }
+    // brush outline
+    if (S.hover && !S.show3d && S.mode === 'view') {
+      const b = S.brush, lo = -Math.floor((b - 1) / 2), c0 = Math.floor(S.hover.x / T) + lo, r0 = Math.floor(S.hover.y / T) + lo;
+      const p = vp.toScr(c0 * T, r0 * T), q = vp.toScr((c0 + b) * T, (r0 + b) * T);
+      ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 1.5; ctx.strokeRect(p.x, p.y, q.x - p.x, q.y - p.y);
+    }
+  }
+  // ── Snake ruler: one game cell = tile / scale source-px ──
+  const cellPx = S.tile / (+$('scale').value) * sc, n = 6;
+  const drawSnake = (x, y, size, alpha) => {
+    ctx.globalAlpha = alpha;
+    for (let i = n - 1; i >= 0; i--) {
+      ctx.fillStyle = i === 0 ? '#00f5c4' : `hsl(${160 - i * 6},80%,${48 - i * 2}%)`;
+      ctx.fillRect(x + i * size + 0.5, y + 0.5, size - 1, size - 1);
+    }
+    ctx.globalAlpha = 1;
+  };
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(vp.w - 190, 10, 180, 22 + Math.max(cellPx, 8));
+  drawSnake(vp.w - 180, 18, Math.max(cellPx, 2), 1);
+  ctx.fillStyle = '#9ab'; ctx.font = '10px Courier New'; ctx.textAlign = 'left';
+  ctx.fillText('snake at true size', vp.w - 180, 28 + Math.max(cellPx, 8));
+  if (S.hover && S.mode === 'view') drawSnake(vp.toScr(S.hover.x, S.hover.y).x, vp.toScr(S.hover.x, S.hover.y).y - cellPx - 4, Math.max(cellPx, 2), 0.55);
+}
+function hatchLines(ctx, x0, y0, x1, y1) {
+  if (x1 - x0 < 5 || y1 - y0 < 5) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.clip();
+  ctx.strokeStyle = 'rgba(60,25,10,.7)'; ctx.lineWidth = 1; ctx.beginPath();
+  const w = x1 - x0, h = y1 - y0, step = Math.max(4, Math.min(10, Math.min(w, h) / 3));
+  for (let d = -h; d < w; d += step) { ctx.moveTo(x0 + d, y1); ctx.lineTo(x0 + d + h, y0); }
+  ctx.stroke(); ctx.restore();
+}
+
+// ── Save / export ───────────────────────────────────────────────────
+function mapData() {
+  const T = S.tile, sc = +$('scale').value, name = $('mapname').value.trim() || 'My maze';
+  // floor texture: 20 px per tile, a faint tile grid, optionally the source drawing ghosted in
+  const cv = document.createElement('canvas'); cv.width = S.cols * CAR_PX; cv.height = S.rows * CAR_PX;
+  const x = cv.getContext('2d');
+  x.fillStyle = $('floorc').value; x.fillRect(0, 0, cv.width, cv.height);
+  const g = +$('ghost').value / 100;
+  if (g > 0) { x.globalAlpha = g; x.drawImage(S.work, 0, 0, S.cols * T, S.rows * T, 0, 0, cv.width, cv.height); x.globalAlpha = 1; }
+  x.strokeStyle = 'rgba(0,0,0,.07)'; x.lineWidth = 1; x.beginPath();
+  const step = CAR_PX / sc;
+  for (let p = 0; p <= cv.width; p += step) { x.moveTo(p, 0); x.lineTo(p, cv.height); }
+  for (let p = 0; p <= cv.height; p += step) { x.moveTo(0, p); x.lineTo(cv.width, p); }
+  x.stroke();
+  const hS = +$('hSolid').value, hH = +$('hHatch').value, objects = [];
+  for (const q of rectsFor()) {
+    const x0 = q.c0 * CAR_PX, y0 = q.r0 * CAR_PX, x1 = q.c1 * CAR_PX, y1 = q.r1 * CAR_PX;
+    const hatch = q.k === 2, h = hatch ? hH : hS;
+    if (h <= 0) continue;
+    objects.push({ type: 'building', pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], height: h, src: 'maze',
+                   texture: hatch ? 'hatch' : 'solid', color: hatch ? '#b9753f' : '#3d3d4d' });
+  }
+  return BK.pack({
+    id: 'maze-' + BK.slug(name) + '-' + Date.now().toString(36).slice(-4), name, kind: 'maze',
+    canvas: cv, mime: 'image/png', carPixels: CAR_PX, gridCols: S.cols, gridRows: S.rows, scale: sc, objects,
+    extra: { tilePx: T },
+  });
+}
+$('btn-save').addEventListener('click', async () => {
+  if (!S.cells) return;
+  try { const d = mapData(); if (S.savedId) d.id = S.savedId; S.savedId = d.id; await BK.save(d); BK.toast('Saved. Find it in the game: DAD → MY MAPS'); }
+  catch (e) { BK.toast(e.message, 5000); }
+});
+$('btn-dl').addEventListener('click', () => { if (!S.cells) return; const d = mapData(); BK.download(BK.slug(d.name) + '.json', JSON.stringify(d)); });
+
+vp.resize();
+setMode('view');
+updateScaleInfo();
+window.S = S;
+</script>
+</body>
+</html>

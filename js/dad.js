@@ -30,6 +30,7 @@ const DAD = {
   active:     false,
   map:        null,    // loaded JSON: { id, image, carPixels, gridCols, gridRows, objects[] }
   maps:       [],      // populated from CFG_DAD.MAPS in startDad()
+  fileMaps:   {},      // "file:<id>" → map JSON picked from a file in the start menu
   currentMap: 0,
   mapScale:   1.0,     // global map scale — increase to zoom in (snake smaller vs map), decrease to zoom out
   _img:       null,    // HTMLImageElement for the satellite texture
@@ -355,7 +356,30 @@ function _dadBuildCollGrid() {
   const scaledCarPx = m.carPixels / (DAD.mapScale || 1.0);
   for (const obj of (m.objects || [])) {
     if (obj.type !== 'building' || !obj.pts || obj.pts.length < 3) continue;
-    _dadRasterizePoly(obj.pts, scaledCarPx, cols, rows);
+    if (m.exact) _dadRasterizeExact(obj.pts, scaledCarPx, cols, rows);
+    else _dadRasterizePoly(obj.pts, scaledCarPx, cols, rows);
+  }
+}
+
+// Builder 2.0 / 3.0 maps: a cell is a wall when its centre is inside the polygon,
+// so a wall drawn 3 cells thick blocks exactly 3 cells (the original fill adds one).
+function _dadRasterizeExact(pts, carPx, cols, rows) {
+  const gp = pts.map(([x, y]) => [x / carPx, y / carPx]);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of gp) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const n = gp.length;
+  for (let row = Math.max(0, Math.floor(y0)); row <= Math.min(rows - 1, Math.ceil(y1)); row++) {
+    const py = row + 0.5;
+    const xs = [];
+    for (let i = 0; i < n; i++) {
+      const a = gp[i], b = gp[(i + 1) % n];
+      if ((a[1] <= py && b[1] > py) || (b[1] <= py && a[1] > py)) xs.push(a[0] + (py - a[1]) / (b[1] - a[1]) * (b[0] - a[0]));
+    }
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2) {
+      const c0 = Math.max(0, Math.ceil(xs[k] - 0.5)), c1 = Math.min(cols - 1, Math.ceil(xs[k + 1] - 0.5) - 1);
+      for (let col = c0; col <= c1; col++) DAD._collGrid[row * cols + col] = 1;
+    }
   }
 }
 
@@ -395,9 +419,15 @@ function _dadPrepBuildings() {
   const scaledCarPx = m.carPixels / (DAD.mapScale || 1.0);
   for (const obj of m.objects) {
     if (obj.type === 'building' && obj.pts && obj.pts.length >= 3) {
+      const wp = obj.pts.map(([px, py]) => [px / scaledCarPx, py / scaledCarPx]);
+      let bx0 = Infinity, bx1 = -Infinity, bz0 = Infinity, bz1 = -Infinity;
+      for (const [c, r] of wp) { bx0 = Math.min(bx0, c); bx1 = Math.max(bx1, c); bz0 = Math.min(bz0, r); bz1 = Math.max(bz1, r); }
       DAD._buildings.push({
         height:   obj.height != null ? obj.height : 2,
-        worldPts: obj.pts.map(([px, py]) => [px / scaledCarPx, py / scaledCarPx]),
+        worldPts: wp,
+        color:    obj.color || null,        // optional: builder 2.0 / 3.0 blocks
+        hatch:    obj.texture === 'hatch',
+        bb:       { x0: bx0, x1: bx1, z0: bz0, z1: bz1 },
       });
     } else if (obj.type === 'tree') {
       DAD._trees.push({ wc: obj.x / scaledCarPx, wr: obj.y / scaledCarPx });
@@ -451,9 +481,15 @@ function _dadDrawBuildings() {
   if (!DAD._buildings.length) return;
 
   const quads = [];
+  // Big maps (mazes, real-world cut-outs) have hundreds of blocks: skip the ones far from the camera
+  const cull = DAD._buildings.length > 60;
   for (const bld of DAD._buildings) {
     const { height: h, worldPts: wpts } = bld;
     const n = wpts.length;
+    if (cull) {
+      const b = bld.bb, dx = Math.max(b.x0 - CAM.x, 0, CAM.x - b.x1), dz = Math.max(b.z0 - CAM.z, 0, CAM.z - b.z1);
+      if (dx * dx + dz * dz > 90 * 90) continue;
+    }
 
     // Wall quads
     for (let i = 0; i < n; i++) {
@@ -465,14 +501,14 @@ function _dadDrawBuildings() {
       const pB1 = project3(cB, h, rB);
       if (!pA0 || !pB0 || !pA1 || !pB1) continue;
       const depth = (pA0.z + pB0.z + pA1.z + pB1.z) * 0.25;
-      quads.push({ wall: true, pA0, pB0, pA1, pB1, depth });
+      quads.push({ wall: true, pA0, pB0, pA1, pB1, depth, bld });
     }
 
     // Roof polygon
     const roof = wpts.map(([c, r]) => project3(c, h, r)).filter(Boolean);
     if (roof.length >= 3) {
       const depth = roof.reduce((s, p) => s + p.z, 0) / roof.length;
-      quads.push({ wall: false, pts: roof, depth });
+      quads.push({ wall: false, pts: roof, depth, bld });
     }
   }
 
@@ -489,24 +525,41 @@ function _dadDrawBuildings() {
       ctx.lineTo(pB1.x, pB1.y);
       ctx.lineTo(pA1.x, pA1.y);
       ctx.closePath();
-      ctx.fillStyle   = 'rgba(155,125,90,0.72)';
-      ctx.strokeStyle = 'rgba(190,155,110,0.85)';
+      ctx.fillStyle   = q.bld.color ? _dadShade(q.bld.color, 0.7, 0.96) : 'rgba(155,125,90,0.72)';
+      ctx.strokeStyle = q.bld.color ? _dadShade(q.bld.color, 1.0, 1) : 'rgba(190,155,110,0.85)';
       ctx.lineWidth   = 1;
       ctx.fill();
       ctx.stroke();
+      if (q.bld.hatch) {
+        // textured block: courses across the wall face
+        ctx.beginPath();
+        for (const t of [0.25, 0.5, 0.75]) {
+          ctx.moveTo(pA0.x + (pA1.x - pA0.x) * t, pA0.y + (pA1.y - pA0.y) * t);
+          ctx.lineTo(pB0.x + (pB1.x - pB0.x) * t, pB0.y + (pB1.y - pB0.y) * t);
+        }
+        ctx.strokeStyle = 'rgba(40,18,6,0.55)';
+        ctx.stroke();
+      }
     } else {
       ctx.beginPath();
       ctx.moveTo(q.pts[0].x, q.pts[0].y);
       for (let i = 1; i < q.pts.length; i++) ctx.lineTo(q.pts[i].x, q.pts[i].y);
       ctx.closePath();
-      ctx.fillStyle   = 'rgba(215,180,135,0.82)';
-      ctx.strokeStyle = 'rgba(240,205,155,0.95)';
+      ctx.fillStyle   = q.bld.color ? _dadShade(q.bld.color, 1.15, 0.97) : 'rgba(215,180,135,0.82)';
+      ctx.strokeStyle = q.bld.color ? _dadShade(q.bld.color, 1.4, 1) : 'rgba(240,205,155,0.95)';
       ctx.lineWidth   = 1;
       ctx.fill();
       ctx.stroke();
     }
   }
   ctx.restore();
+}
+
+// "#rrggbb" → rgba() string, brightness scaled by k
+function _dadShade(hex, k, a) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = v => Math.max(0, Math.min(255, Math.round(v * k)));
+  return 'rgba(' + c(n >> 16 & 255) + ',' + c(n >> 8 & 255) + ',' + c(n & 255) + ',' + a + ')';
 }
 
 function _dadDrawTrees() {
@@ -581,9 +634,18 @@ DAD._isWall = function(col, row) {
 
 async function loadDadMap(jsonPath) {
   // 1. Load map JSON — use pre-bundled data first (works on file://) then fall back to fetch
+  // Maps made in Map Builder 2.0 / 3.0 are kept in this browser ("store:<id>")
+  // or picked from a file ("file:<id>", already parked in DAD.fileMaps).
   let data;
   const _bundled = window._DAD_MAPS_DATA && window._DAD_MAPS_DATA[jsonPath];
-  if (_bundled) {
+  if (/^store:/.test(jsonPath)) {
+    if (!window.MapStore) throw new Error('loadDadMap: map storage is not available in this browser.');
+    data = await MapStore.get(jsonPath.slice(6));
+    if (!data) throw new Error('loadDadMap: saved map "' + jsonPath.slice(6) + '" was not found on this device.');
+  } else if (/^file:/.test(jsonPath)) {
+    data = DAD.fileMaps[jsonPath];
+    if (!data) throw new Error('loadDadMap: that map file is no longer loaded — pick it again.');
+  } else if (_bundled) {
     data = _bundled;
   } else {
     // Diagnostics: tell the user exactly why the bundle wasn't found
@@ -613,7 +675,9 @@ async function loadDadMap(jsonPath) {
   });
 
   // 3. Resize world — apply mapScale (read from CFG_DAD.SCALE if set)
-  DAD.mapScale = (typeof CFG_DAD !== 'undefined' && CFG_DAD.SCALE) ? CFG_DAD.SCALE : DAD.mapScale;
+  // A map can carry its own scale (builder 2.0 / 3.0 maps are drawn at the size they should play at).
+  DAD.mapScale = data.scale ? data.scale
+               : (typeof CFG_DAD !== 'undefined' && CFG_DAD.SCALE) ? CFG_DAD.SCALE : DAD.mapScale;
   CFG.COLS = Math.max(4, Math.round(data.gridCols * DAD.mapScale));
   CFG.ROWS = Math.max(4, Math.round(data.gridRows * DAD.mapScale));
 

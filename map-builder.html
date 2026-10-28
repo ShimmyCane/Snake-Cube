@@ -93,7 +93,7 @@ input[type=number]:focus, input[type=text]:focus { outline: none; border-color: 
 /* ── Hint overlay ── */
 #hint {
   position: absolute;
-  bottom: 12px;
+  bottom: 64px;
   right: 12px;
   background: rgba(0,0,0,0.7);
   border: 1px solid #2a2a3e;
@@ -106,12 +106,20 @@ input[type=number]:focus, input[type=text]:focus { outline: none; border-color: 
   z-index: 10;
 }
 #hint .k { color: #00f5c4; }
+
+/* ── Version switcher (lower right) ── */
+#switcher { position: fixed; right: 12px; bottom: 12px; z-index: 2000; display: flex; gap: 8px; }
+#switcher a { background: #0d0d1a; border: 1px solid #00f5c4; color: #00f5c4; text-decoration: none; border-radius: 4px; padding: 9px 14px; font-size: 0.66rem; letter-spacing: 1px; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#switcher a:hover { background: #00f5c4; color: #000; }
+#toolbar a.home { color: #888; text-decoration: none; font-size: 0.62rem; border: 1px solid #333; border-radius: 3px; padding: 4px 9px; }
+#toolbar a.home:hover { color: #00f5c4; border-color: #00f5c4; }
 </style>
 </head>
 <body>
 
 <div id="toolbar">
-  <h1>MAP BUILDER</h1>
+  <a class="home" href="index.html" title="Back to the game">🏠 GAME</a>
+  <h1>MAP BUILDER 1.0</h1>
   <div class="sep"></div>
 
   <div class="tool-group">
@@ -180,6 +188,11 @@ input[type=number]:focus, input[type=text]:focus { outline: none; border-color: 
     <span class="k">SCROLL</span>    zoom · <span class="k">SPACE+DRAG</span> or <span class="k">MMB</span> to pan<br>
     <span class="k">DEL</span>       delete selected · <span class="k">ESC</span> cancel drawing
   </div>
+</div>
+
+<div id="switcher">
+  <a href="map-builder-3.html">3.0 MAZES</a>
+  <a href="map-builder-2.html">MAP BUILDER 2.0 · REAL WORLD →</a>
 </div>
 
 <!-- hidden file inputs -->

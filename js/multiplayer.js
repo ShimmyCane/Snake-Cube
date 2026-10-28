@@ -66,6 +66,7 @@
       </div>
       <p class="menu-section-label" style="margin-top:4px">Another game</p>
       <a class="mp-btn" href="snake2/" style="display:block;text-align:center;text-decoration:none;padding:10px">🏛️ SNAKE II<br><span style="font-size:0.56rem;opacity:0.7">Roman numerals · grid snake</span></a>
+      <a class="mp-btn" href="map-builder.html" style="display:block;text-align:center;text-decoration:none;padding:10px;margin-top:6px">🛠 MAP BUILDERS<br><span style="font-size:0.56rem;opacity:0.7">images · real world · mazes</span></a>
       <p id="mp-status" style="font-size:0.65rem;color:#555570;min-height:1.1em;margin-top:4px;text-align:center"></p>
       <button class="mp-btn" id="mp-btn-others-back" style="width:100%;max-width:300px;margin-top:10px;padding:10px">← BACK</button>
     </div>
@@ -212,7 +213,41 @@ function initMPOverlay() {
   // Four modes. Each mode has its own options (difficulty; map for Dad's).
   // START launches the selected mode with its current settings.
   const dadMaps = Object.keys(window._DAD_MAPS_DATA || {});
-  const MENU = { mode: 'felix', felix: 'hard', athena: 'easy', dad: 'normal', map: dadMaps[0] || null };
+  const MENU = { mode: 'felix', felix: 'hard', athena: 'easy', dad: 'normal', map: dadMaps[0] || null,
+                 src: 'classic', mine: [], mineSel: null, mineMsg: '' };
+  // MY MAPS = maps made in Map Builder 2.0 (real world) / 3.0 (mazes), saved in this browser
+  async function refreshMine(selectId) {
+    try {
+      MENU.mine = (window.MapStore && MapStore.available) ? await MapStore.list() : [];
+      MENU.mineMsg = '';
+    } catch (err) { MENU.mine = []; MENU.mineMsg = 'Saved maps are unavailable in this browser.'; }
+    for (const id of Object.keys(DAD.fileMaps)) {
+      const m = DAD.fileMaps[id];
+      MENU.mine.push({ id: id, name: m.name || m.id, kind: m.kind, fromFile: true });
+    }
+    const ids = MENU.mine.map(m => (m.fromFile ? '' : 'store:') + m.id);
+    if (selectId) MENU.mineSel = selectId;
+    if (!ids.includes(MENU.mineSel)) MENU.mineSel = ids[0] || null;
+    renderMenu();
+  }
+  function loadMapFile() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.addEventListener('change', async () => {
+      const f = inp.files[0]; if (!f) return;
+      try {
+        const data = JSON.parse(await f.text());
+        if (!data.imageDataURL || !data.gridCols || !data.gridRows || !Array.isArray(data.objects)) throw new Error('This is not a map made by Map Builder 2.0 / 3.0.');
+        data.id = data.id || ('file-' + Date.now().toString(36));
+        let sel;
+        try { await MapStore.put(data); sel = 'store:' + data.id; }
+        catch (e) { DAD.fileMaps['file:' + data.id] = data; sel = 'file:' + data.id; }
+        MENU.src = 'mine';
+        await refreshMine(sel);
+      } catch (err) { alert('Could not load that map:\n' + err.message); }
+    });
+    inp.click();
+  }
   const dadLabel = path => {
     const data = window._DAD_MAPS_DATA && window._DAD_MAPS_DATA[path];
     const raw  = (data && data.id) || path.replace(/^assets\//, '').replace(/\.json$/i, '');
@@ -244,8 +279,44 @@ function initMPOverlay() {
     } else if (MENU.mode === 'athena') {
       pills('DIFFICULTY', [['easy', 'EASY · 7 min'], ['hard', 'HARD · 9 min']], MENU.athena, v => { MENU.athena = v; });
     } else if (MENU.mode === 'dad') {
-      pills('MAP', dadMaps.map(p => [p, dadLabel(p)]), MENU.map, v => { MENU.map = v; });
+      pills('WORLD', [['classic', 'CLASSIC MAPS'], ['mine', 'MY MAPS']], MENU.src, v => { MENU.src = v; if (v === 'mine') refreshMine(); });
+      if (MENU.src === 'classic') {
+        pills('MAP', dadMaps.map(p => [p, dadLabel(p)]), MENU.map, v => { MENU.map = v; });
+      } else {
+        const mineIcon = k => k === 'maze' ? '🧩 ' : k === 'world' ? '🌍 ' : '';
+        if (MENU.mine.length) {
+          pills('YOUR MAPS', MENU.mine.map(m => [(m.fromFile ? '' : 'store:') + m.id, mineIcon(m.kind) + String(m.name).toUpperCase().slice(0, 18)]),
+                MENU.mineSel, v => { MENU.mineSel = v; });
+        } else {
+          const note = document.createElement('p');
+          note.className = 'menu-section-label';
+          note.textContent = MENU.mineMsg || 'No saved maps yet — make one in a Map Builder, or load a file.';
+          box.appendChild(note);
+        }
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;margin-top:6px';
+        const load = document.createElement('button');
+        load.className = 'ctrl-pill'; load.textContent = '📂 LOAD MAP FILE';
+        load.addEventListener('click', loadMapFile);
+        row.appendChild(load);
+        if (MENU.mineSel && /^store:/.test(MENU.mineSel)) {
+          const del = document.createElement('button');
+          del.className = 'ctrl-pill'; del.textContent = '🗑 DELETE';
+          del.addEventListener('click', async () => {
+            if (!confirm('Delete this saved map from this device?')) return;
+            try { await MapStore.del(MENU.mineSel.slice(6)); } catch (e) {}
+            MENU.mineSel = null; refreshMine();
+          });
+          row.appendChild(del);
+        }
+        box.appendChild(row);
+      }
       pills('DIFFICULTY', [['normal', 'NORMAL · 7 min'], ['hard', 'HARD · 9 min']], MENU.dad, v => { MENU.dad = v; });
+      const bl = document.createElement('a');
+      bl.className = 'ctrl-pill'; bl.href = 'map-builder.html';
+      bl.style.cssText = 'display:block;text-align:center;text-decoration:none;margin-top:6px';
+      bl.innerHTML = '🛠 MAP BUILDERS<br><span style="font-size:0.5rem;opacity:0.6">1.0 images · 2.0 real world · 3.0 mazes</span>';
+      box.appendChild(bl);
     }
   }
   async function startSelected() {
@@ -256,12 +327,12 @@ function initMPOverlay() {
     } else if (MENU.mode === 'athena') {
       ATHENA.diffMode = MENU.athena;
       startAthena();
-    } else if (MENU.mode === 'dad' && MENU.map) {
+    } else if (MENU.mode === 'dad' && (MENU.src === 'mine' ? MENU.mineSel : MENU.map)) {
       const btn = document.getElementById('menu-start');
       btn.disabled = true;
       btn.textContent = 'LOADING…';
       try {
-        await launchDadMode(MENU.map, MENU.dad === 'hard');
+        await launchDadMode(MENU.src === 'mine' ? MENU.mineSel : MENU.map, MENU.dad === 'hard');
       } catch (err) {
         console.error('DAD:', err);
         alert('Could not load Dad\'s Mode:\n' + err.message);
@@ -273,7 +344,7 @@ function initMPOverlay() {
   }
   document.getElementById('menu-felix').addEventListener('click',  () => { MENU.mode = 'felix';  renderMenu(); });
   document.getElementById('menu-athena').addEventListener('click', () => { MENU.mode = 'athena'; renderMenu(); });
-  document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); });
+  document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); if (MENU.src === 'mine') refreshMine(); });
   document.getElementById('menu-others').addEventListener('click', () => showMPScreen('others'));
   document.getElementById('menu-start').addEventListener('click',  startSelected);
   document.getElementById('menu-music').addEventListener('click', () => {

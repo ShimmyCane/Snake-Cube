@@ -6,6 +6,22 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Map Builder 2.0 (real world) and 3.0 (mazes)
+
+- **Reaching the builders:** the start menu's DAD options and OTHERS screen link to Map Builder 1.0. Each builder has a lower-right switcher (1.0 ↔ 2.0 ↔ 3.0) and a 🏠 GAME link.
+- **Map Builder 2.0 — real world** (`map-builder-2.html`): search a place or drop a pin on a Leaflet map (satellite / street / clean layers), cut out a circle, square or custom polygon, then PULL DATA & BAKE:
+  - the ground texture is stitched from map tiles (Esri imagery, OSM or CARTO street map, or a mix) at 20 px per game cell, masked to the shape;
+  - OpenStreetMap supplies buildings (heights from `height` / `building:levels`), streets, trees and parks through Overpass;
+  - optional wall-off of everything outside the shape;
+  - editor with select / tree / quick block / drawn block / erase, auto-generated trees (parks only, or anywhere free), a cell grid and a scale reference; works with touch (one finger pans, two pinch, tap to use the tool);
+  - a three.js 3D preview, then SAVE TO THIS DEVICE or DOWNLOAD .json.
+- **Map Builder 3.0 — mazes** (`map-builder-3.html`): open a maze JPEG / screenshot (or press SAMPLE MAZE), crop, rotate, then GENERATE WALLS. Solid lines become tall walls, hatching becomes lower textured walls. Paint-edit walls with a brush, set wall / hatch height, and set the scale (game cells per tile). A true-size snake ruler (also following the cursor) shows how the snake fits the corridors.
+- **Dad's mode:** new WORLD row — CLASSIC MAPS (as before) or MY MAPS. MY MAPS lists maps saved by the builders in this browser (IndexedDB, `js/map-store.js`), loads a `.json` from a file, and can delete saved maps.
+- **Loader changes (`js/dad.js`):** maps may carry their own `scale`; `exact` maps rasterise walls by cell centre so a wall drawn N cells thick blocks N cells; blocks may carry `color` and `texture: 'hatch'`; maps with many blocks cull the far ones each frame. Existing maps load exactly as before.
+- **Planned:** import 3D masses (glTF / GLB first, then CityGML or 3D Tiles), per-tree species and 3D tree models, terrain elevation, per-wall textures.
+
+---
+
 ## Unreleased — Snake II, after the first phone test
 
 - **Bigger and the same everywhere:** cells are 35 px on every device (about 35% bigger on an iPhone). Bigger screens show more map, and the minimap scales up. The page re-checks the screen size every frame, and uses safe-area insets for the notch.

@@ -18,6 +18,8 @@ The git history here starts at a single "initialize" commit, so entries before v
 - **Map Builder 3.0 — mazes** (`map-builder-3.html`): open a maze JPEG / screenshot (or press SAMPLE MAZE), crop, rotate, then GENERATE WALLS. Solid lines become tall walls, hatching becomes lower textured walls. Paint-edit walls with a brush, set wall / hatch height, and set the scale (game cells per tile). A true-size snake ruler (also following the cursor) shows how the snake fits the corridors.
 - **Dad's mode:** new WORLD row — CLASSIC MAPS (as before) or MY MAPS. MY MAPS lists maps saved by the builders in this browser (IndexedDB, `js/map-store.js`), loads a `.json` from a file, and can delete saved maps.
 - **Loader changes (`js/dad.js`):** maps may carry their own `scale`; `exact` maps rasterise walls by cell centre so a wall drawn N cells thick blocks N cells; blocks may carry `color` and `texture: 'hatch'`; maps with many blocks cull the far ones each frame. Existing maps load exactly as before.
+- **Pull what you tick (2.0):** "What to pull" is now a plain list: ① background, ② wall off outside, ③ 3D buildings, ④ streets (+ footpaths), ⑤ trees & parks. Unticked layers are not downloaded. BACKGROUND ONLY and EVERYTHING presets are added, and a line under the button says what will be pulled.
+- **Pull doesn't hang (2.0):** every map tile times out after 12 s and the OSM request after 60 s. A live status line shows the step and elapsed seconds. The button becomes ✕ CANCEL PULL; cancelling keeps the current map.
 - **Planned:** import 3D masses (glTF / GLB first, then CityGML or 3D Tiles), per-tree species and 3D tree models, terrain elevation, per-wall textures.
 
 ---

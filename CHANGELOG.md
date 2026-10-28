@@ -20,6 +20,11 @@ The git history here starts at a single "initialize" commit, so entries before v
 - **Loader changes (`js/dad.js`):** maps may carry their own `scale`; `exact` maps rasterise walls by cell centre so a wall drawn N cells thick blocks N cells; blocks may carry `color` and `texture: 'hatch'`; maps with many blocks cull the far ones each frame. Existing maps load exactly as before.
 - **Pull what you tick (2.0):** "What to pull" is now a plain list: ① background, ② wall off outside, ③ 3D buildings, ④ streets (+ footpaths), ⑤ trees & parks. Unticked layers are not downloaded. BACKGROUND ONLY and EVERYTHING presets are added, and a line under the button says what will be pulled.
 - **Pull doesn't hang (2.0):** every map tile times out after 12 s and the OSM request after 60 s. A live status line shows the step and elapsed seconds. The button becomes ✕ CANCEL PULL; cancelling keeps the current map.
+- **Pull fixes (2.0):** OSM is asked one layer at a time (buildings, streets, trees), and a big area is split into four. Overpass errors and out-of-memory remarks are shown by name instead of silently giving no buildings.
+- **Game scale (2.0):** a GAME SCALE slider (1–6, default 3). Higher means more, smaller cells, so the snake looks smaller and the map feels bigger.
+- **Auto blocks (2.0):** AUTO-BLOCK FROM PICTURE finds rooftops in the baked picture from edges, brightness steps and colour (not green, water, shadow or roads), joins the cells into blocks, and skips real footprints. Sensitivity, minimum size and block height are adjustable. Clear removes them.
+- **Map names:** the name field now sits at the top of the edit panel in 2.0 and 3.0.
+- **Favorites (family database):** ★ SAVE FAVORITE uploads the map to the Family Supabase project (`snake_maps` table, registered in `app_table_registry`). Dad's menu has WORLD → ★ FAVORITES to play them. Anyone with the page can save and delete, as the family chose. Device saves remain under MY MAPS.
 - **Planned:** import 3D masses (glTF / GLB first, then CityGML or 3D Tiles), per-tree species and 3D tree models, terrain elevation, per-wall textures.
 
 ---

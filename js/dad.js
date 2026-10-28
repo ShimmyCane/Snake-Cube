@@ -4,6 +4,7 @@
 //
 //  Public API:
 //    loadDadMap(jsonPath) → Promise  — fetch JSON + image, resize world
+//      jsonPath: 'assets/x.json' | 'store:<id>' (this device) | 'cloud:<id>' (family) | 'file:<id>'
 //    startDad()                       — activate mode, init WebGL, start game
 //    DAD.drawBg()                     — called from main.js draw() each frame
 //    DAD._isWall(col, row) → bool     — building/boundary collision query
@@ -645,6 +646,11 @@ async function loadDadMap(jsonPath) {
   } else if (/^file:/.test(jsonPath)) {
     data = DAD.fileMaps[jsonPath];
     if (!data) throw new Error('loadDadMap: that map file is no longer loaded — pick it again.');
+  } else if (/^cloud:/.test(jsonPath)) {
+    // family favourites (MapCloud, js/map-store.js)
+    if (!window.MapCloud) throw new Error('loadDadMap: the family database is not available.');
+    data = await MapCloud.get(jsonPath.slice(6));
+    if (!data) throw new Error('loadDadMap: that favourite was not found in the family database.');
   } else if (_bundled) {
     data = _bundled;
   } else {

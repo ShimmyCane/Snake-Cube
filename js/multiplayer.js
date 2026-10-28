@@ -214,7 +214,19 @@ function initMPOverlay() {
   // START launches the selected mode with its current settings.
   const dadMaps = Object.keys(window._DAD_MAPS_DATA || {});
   const MENU = { mode: 'felix', felix: 'hard', athena: 'easy', dad: 'normal', map: dadMaps[0] || null,
-                 src: 'classic', mine: [], mineSel: null, mineMsg: '' };
+                 src: 'classic', mine: [], mineSel: null, mineMsg: '',
+                 favs: null, favSel: null, favMsg: '' };
+  // The map picked for START, whichever WORLD source is showing
+  const curMap = () => MENU.src === 'mine' ? MENU.mineSel : MENU.src === 'fav' ? MENU.favSel : MENU.map;
+  // FAVORITES = maps saved to the family database from Map Builder 2.0 / 3.0
+  async function loadFavs(selectId) {
+    MENU.favs = null; renderMenu();
+    try { MENU.favs = await MapCloud.list(); MENU.favMsg = ''; }
+    catch (err) { MENU.favs = []; MENU.favMsg = 'Could not reach the family database: ' + err.message; }
+    if (selectId) MENU.favSel = 'cloud:' + selectId;
+    if (!MENU.favs.some(f => 'cloud:' + f.id === MENU.favSel)) MENU.favSel = MENU.favs[0] ? 'cloud:' + MENU.favs[0].id : null;
+    renderMenu();
+  }
   // MY MAPS = maps made in Map Builder 2.0 (real world) / 3.0 (mazes), saved in this browser
   async function refreshMine(selectId) {
     try {
@@ -279,9 +291,32 @@ function initMPOverlay() {
     } else if (MENU.mode === 'athena') {
       pills('DIFFICULTY', [['easy', 'EASY · 7 min'], ['hard', 'HARD · 9 min']], MENU.athena, v => { MENU.athena = v; });
     } else if (MENU.mode === 'dad') {
-      pills('WORLD', [['classic', 'CLASSIC MAPS'], ['mine', 'MY MAPS']], MENU.src, v => { MENU.src = v; if (v === 'mine') refreshMine(); });
+      pills('WORLD', [['classic', 'CLASSIC'], ['mine', 'MY MAPS'], ['fav', '★ FAVORITES']], MENU.src,
+            v => { MENU.src = v; if (v === 'mine') refreshMine(); if (v === 'fav') loadFavs(); });
       if (MENU.src === 'classic') {
         pills('MAP', dadMaps.map(p => [p, dadLabel(p)]), MENU.map, v => { MENU.map = v; });
+      } else if (MENU.src === 'fav') {
+        const icon = k => k === 'maze' ? '🧩 ' : k === 'world' ? '🌍 ' : '';
+        if (MENU.favs === null) {
+          const note = document.createElement('p');
+          note.className = 'menu-section-label'; note.textContent = 'Loading favorites…';
+          box.appendChild(note);
+        } else if (MENU.favs.length) {
+          pills('FAMILY FAVORITES', MENU.favs.map(m => ['cloud:' + m.id, icon(m.kind) + String(m.name).toUpperCase().slice(0, 18)]),
+                MENU.favSel, v => { MENU.favSel = v; });
+        } else {
+          const note = document.createElement('p');
+          note.className = 'menu-section-label';
+          note.textContent = MENU.favMsg || 'No favorites yet. Make a map in a Map Builder and tap ★ SAVE FAVORITE.';
+          box.appendChild(note);
+        }
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;margin-top:6px';
+        const refresh = document.createElement('button');
+        refresh.className = 'ctrl-pill'; refresh.textContent = '↻ REFRESH';
+        refresh.addEventListener('click', () => loadFavs());
+        row.appendChild(refresh);
+        box.appendChild(row);
       } else {
         const mineIcon = k => k === 'maze' ? '🧩 ' : k === 'world' ? '🌍 ' : '';
         if (MENU.mine.length) {
@@ -327,12 +362,12 @@ function initMPOverlay() {
     } else if (MENU.mode === 'athena') {
       ATHENA.diffMode = MENU.athena;
       startAthena();
-    } else if (MENU.mode === 'dad' && (MENU.src === 'mine' ? MENU.mineSel : MENU.map)) {
+    } else if (MENU.mode === 'dad' && curMap()) {
       const btn = document.getElementById('menu-start');
       btn.disabled = true;
       btn.textContent = 'LOADING…';
       try {
-        await launchDadMode(MENU.src === 'mine' ? MENU.mineSel : MENU.map, MENU.dad === 'hard');
+        await launchDadMode(curMap(), MENU.dad === 'hard');
       } catch (err) {
         console.error('DAD:', err);
         alert('Could not load Dad\'s Mode:\n' + err.message);
@@ -344,7 +379,7 @@ function initMPOverlay() {
   }
   document.getElementById('menu-felix').addEventListener('click',  () => { MENU.mode = 'felix';  renderMenu(); });
   document.getElementById('menu-athena').addEventListener('click', () => { MENU.mode = 'athena'; renderMenu(); });
-  document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); if (MENU.src === 'mine') refreshMine(); });
+  document.getElementById('menu-dad').addEventListener('click',    () => { MENU.mode = 'dad';    renderMenu(); if (MENU.src === 'mine') refreshMine(); if (MENU.src === 'fav') loadFavs(); });
   document.getElementById('menu-others').addEventListener('click', () => showMPScreen('others'));
   document.getElementById('menu-start').addEventListener('click',  startSelected);
   document.getElementById('menu-music').addEventListener('click', () => {

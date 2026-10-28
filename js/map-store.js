@@ -9,6 +9,13 @@
 //    MapStore.list()     → Promise<[{id,name,kind,saved,gridCols,gridRows}]>
 //    MapStore.del(id)    → Promise
 //    MapStore.available  → false when IndexedDB is blocked (private mode)
+//
+//  MapCloud — favourite maps in the family database (Supabase table snake_maps).
+//    MapCloud.list()     → Promise<[{id,name,kind,created_at}]>
+//    MapCloud.get(id)    → Promise<map|null>
+//    MapCloud.save(map)  → Promise   (upsert by map.id)
+//    MapCloud.del(id)    → Promise
+//  Anyone with the page can use it (the family's choice; RLS is open on this table only).
 // ════════════════════════════════════════════════════════════════════
 (function () {
   const DB = 'felix-snake-maps', STORE = 'maps';
@@ -56,4 +63,36 @@
     },
   };
   window.MapStore = MapStore;
+})();
+
+// ── Family database: favourite maps ─────────────────────────────────
+(function () {
+  const BASE = 'https://twvqvutrcobedvuhnzxq.supabase.co/rest/v1/snake_maps';
+  const KEY  = 'sb_publishable_eqUo8HEdEB1hMQM4CpSVqA_9i6b0qCo';   // publishable key: safe in a browser
+  const HEAD = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+
+  async function req(query, opts) {
+    const r = await fetch(BASE + query, Object.assign({ headers: HEAD }, opts || {}));
+    const text = await r.text();
+    if (!r.ok) throw new Error('Family database: HTTP ' + r.status + (text ? ' — ' + text.slice(0, 160) : ''));
+    return text ? JSON.parse(text) : null;
+  }
+  const enc = s => encodeURIComponent(s);
+
+  window.MapCloud = {
+    list() {
+      return req('?select=id,name,kind,created_at&order=created_at.desc');
+    },
+    get(id) {
+      return req('?select=data&id=eq.' + enc(id)).then(rows => (rows && rows[0] ? rows[0].data : null));
+    },
+    save(map) {
+      const body = JSON.stringify({ id: map.id, name: map.name || map.id, kind: map.kind || 'world', data: map, updated_at: new Date().toISOString() });
+      return req('?on_conflict=id', { method: 'POST', body,
+                                      headers: Object.assign({}, HEAD, { Prefer: 'resolution=merge-duplicates,return=minimal' }) });
+    },
+    del(id) {
+      return req('?id=eq.' + enc(id), { method: 'DELETE', headers: Object.assign({}, HEAD, { Prefer: 'return=minimal' }) });
+    },
+  };
 })();

@@ -60,6 +60,9 @@ input[type=color] { width: 34px; height: 26px; background: none; border: 1px sol
 
 <div id="main">
   <div id="panel">
+    <h2>MAP NAME</h2>
+    <div class="row"><input type="text" id="mapname" placeholder="Name this maze" value="My maze"></div>
+
     <h2>1 · MAZE IMAGE</h2>
     <div class="row"><button id="btn-open" class="accent">📂 OPEN IMAGE / PHOTO</button></div>
     <div class="row"><button id="btn-sample">🎲 SAMPLE MAZE</button><button id="btn-rot">⟳ ROTATE</button></div>
@@ -98,10 +101,10 @@ input[type=color] { width: 34px; height: 26px; background: none; border: 1px sol
     <p class="note">Scale = game cells per tile. The green snake in the corner is your snake at true size — widen the scale until it fits the corridors comfortably.</p>
 
     <h2>6 · SAVE</h2>
-    <div class="row"><input type="text" id="mapname" value="My maze"></div>
-    <div class="row"><button id="btn-save" class="hot" disabled>💾 SAVE TO THIS DEVICE</button></div>
+    <div class="row"><button id="btn-fav" class="hot" disabled>★ SAVE FAVORITE (FAMILY)</button></div>
+    <div class="row"><button id="btn-save" class="accent" disabled>💾 SAVE TO THIS DEVICE</button></div>
     <div class="row"><button id="btn-dl" class="accent" disabled>⬇ DOWNLOAD .JSON</button></div>
-    <p class="note">Saved mazes appear in the game under <b>DAD → MY MAPS</b> on this device.</p>
+    <p class="note">★ Favorites go to the family database and show in the game under <b>DAD → WORLD → FAVORITES</b>. Device saves appear under <b>MY MAPS</b>.</p>
   </div>
 
   <div id="stage">
@@ -152,7 +155,7 @@ function setImage(imgOrCanvas) {
   c.getContext('2d').drawImage(imgOrCanvas, 0, 0, c.width, c.height);
   S.orig = c; S.work = c; S.crop = null; S.cells = null; S.cols = S.rows = 0; S.history = [];
   setMode('view');
-  $('btn-gen').disabled = false; $('btn-reset').disabled = true; $('btn-save').disabled = true; $('btn-dl').disabled = true;
+  $('btn-gen').disabled = false; $('btn-reset').disabled = true; $('btn-save').disabled = $('btn-fav').disabled = true; $('btn-dl').disabled = true;
   vp.fit(c.width, c.height);
   autoTile();
   status(`Image ${c.width}×${c.height}px. Crop it, then GENERATE WALLS.`);
@@ -298,7 +301,7 @@ function generate() {
   }
   snapshot();
   S.cols = cols; S.rows = rows; S.cells = keep;
-  $('btn-save').disabled = false; $('btn-dl').disabled = false;
+  $('btn-save').disabled = $('btn-fav').disabled = false; $('btn-dl').disabled = false;
   updateScaleInfo();
   const cnt = [0, 0, 0]; for (const v of keep) cnt[v]++;
   status(`${cols}×${rows} tiles · ${cnt[1]} solid · ${cnt[2]} hatch. Touch up with the paint tools.`);
@@ -473,6 +476,17 @@ function mapData() {
     extra: { tilePx: T },
   });
 }
+$('btn-fav').addEventListener('click', async () => {
+  if (!S.cells) return;
+  const d = mapData(); if (S.savedId) d.id = S.savedId;
+  const kb = Math.round(JSON.stringify(d).length / 1024);
+  if (kb > 6000) { BK.toast(`This maze is ${kb} KB, too big for the family database. Use SAVE TO THIS DEVICE.`, 7000); return; }
+  const btn = $('btn-fav'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { await MapCloud.save(d); S.savedId = d.id; BK.toast('★ Saved to the family database: ' + d.name); }
+  catch (e) { BK.toast(e.message, 7000); }
+  finally { btn.disabled = false; btn.textContent = label; }
+});
 $('btn-save').addEventListener('click', async () => {
   if (!S.cells) return;
   try { const d = mapData(); if (S.savedId) d.id = S.savedId; S.savedId = d.id; await BK.save(d); BK.toast('Saved. Find it in the game: DAD → MY MAPS'); }

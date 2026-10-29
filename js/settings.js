@@ -320,13 +320,8 @@ if(_startvalSlider) {
   applyStartValSlider(_initExp);
 }
 
-// show existing high scores
-const ehs=loadHS();
-if(ehs.length){
-  const el=document.getElementById('hs0');
-  el.innerHTML='<table style="margin-top:8px"><thead><tr><th>#</th><th>Score</th><th>Date</th></tr></thead><tbody id="hs0b"></tbody></table>';
-  renderHS('hs0b',ehs);
-}
+// show the family high-score board (local cache if offline)
+if (typeof showBoard === 'function') showBoard('hs0');
 
 G = { player:null, bots:[], food:[], running:false, camC:20, camR:20, tgtC:20, tgtR:20 };
 // MP overlay init handled by window 'load' event in multiplayer.js

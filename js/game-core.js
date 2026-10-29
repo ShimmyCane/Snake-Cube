@@ -869,6 +869,8 @@ function showFlash(msg, color) {
 function endGame(reason, loss, knownHeadVal) {
   if(!G.running) return;
   G.running = false;
+  // read before Athena cleanup below; family-scores.js may be missing if its script failed
+  const gameInfo = typeof currentGameMode === 'function' ? currentGameMode() : { mode: 'felix', map: null };
   clearTimers();
   showJoystickUI(false);
   if(typeof ATHENA !== 'undefined' && ATHENA.active) athenaCleanup();
@@ -877,11 +879,12 @@ function endGame(reason, loss, knownHeadVal) {
   let calculatedStart = headVal / 64;
   CFG.PLAYER_START_VAL = Math.max(2, Math.floor(calculatedStart));
   const date = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-  const hs = saveHS({score: headVal, date});
+  saveHS({score: headVal, date});       // local cache
   document.getElementById('ot').textContent = loss ? 'GAME OVER' : "TIME'S UP!";
   document.getElementById('os').textContent = `Head: ${fmtVal(headVal)}`;
   document.getElementById('or').textContent = reason;
-  renderHS('hsb', hs);
+  if (typeof submitGameScore === 'function') submitGameScore(headVal, gameInfo).catch(() => {}).then(() => showBoard('hsb'));
+  else renderHS('hsb', loadHS());
   setTimeout(()=>document.getElementById('s-over').classList.remove('hidden'), 700);
 }
 

@@ -135,6 +135,7 @@ window._LOAD = {
     'js/input.js':       'pending',
     'js/weapons.js':     'pending',
     'js/athena.js':      'pending',
+    'js/family-scores.js': 'pending',
     'js/multiplayer.js': 'pending',
     'js/settings.js':    'pending',
     'js/main.js':        'pending',
@@ -394,8 +395,7 @@ window._DIAG = {
   <h2 id="ot">GAME OVER</h2>
   <p class="big" id="os"></p>
   <p id="or"></p>
-  <table><thead><tr><th>#</th><th>Score</th><th>Date</th></tr></thead>
-    <tbody id="hsb"></tbody></table>
+  <div id="hsb"></div>
   <button class="btn" id="b-restart">PLAY AGAIN</button>
   <button onclick="resetAllHighScores()" style="margin-top: 15px; background: transparent; color: #ff4a4a; border: 2px solid #ff4a4a; border-radius: 20px; padding: 10px 24px; font-family: inherit; font-weight: bold; cursor: pointer; text-shadow: 0 0 5px #ff4a4a; box-shadow: 0 0 10px rgba(255, 74, 74, 0.2);">RESET HIGH SCORES</button>
 </div>
@@ -407,7 +407,7 @@ window._DIAG = {
 <script>
   // Explicitly tie it to the window scope so the inline onclick button can always find it
   window.resetAllHighScores = function() {
-    if (confirm("Are you sure you want to completely wipe out all high scores?")) {
+    if (confirm("Clear this device's high scores and saved settings? The family board is kept.")) {
       localStorage.clear(); 
       if (window.G && window.G.player) {
         window.player_start_val = 2; 
@@ -417,6 +417,11 @@ window._DIAG = {
   };
 </script>
 
+
+<!-- family high-score board (shared table; local cache fallback) -->
+<script src="js/family-scores.js"
+        onload="window._LOAD.ok('js/family-scores.js')"
+        onerror="window._LOAD.fail('js/family-scores.js')"></script>
 
 <!-- CFG constants, palettes, audio playlist, world-size helpers -->
 <script src="js/map-store.js"></script>

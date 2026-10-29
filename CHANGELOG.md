@@ -6,6 +6,14 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Family high scores
+
+- **Family board:** every finished solo game (Felix, Athena, Dad's mode) is saved to a shared `snake_highscores` table in the Family database, with the player's name, mode and map. The start screen and the game-over screen show the family's top 8.
+- **Local cache kept:** `sn2048` still holds this device's top 8 and is shown when the family database can't be reached. A score that fails to upload waits on the device (up to 50) and is sent with the next game.
+- **Not on the board:** multiplayer rounds.
+- **Access:** anyone with the page can read and add scores, as the family chose. Scores can't be edited or deleted from the page.
+- **Reset:** RESET HIGH SCORES clears this device only. The family board is kept.
+
 ## Unreleased — Map Builder 2.0 (real world) and 3.0 (mazes)
 
 - **Reaching the builders:** the start menu's DAD options and OTHERS screen link to Map Builder 1.0. Each builder has a lower-right switcher (1.0 ↔ 2.0 ↔ 3.0) and a 🏠 GAME link.

@@ -6,6 +6,13 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Open saved maps
+
+- **Open SAVED (2.0 and 3.0):** the 📂 OPEN SAVED button lists maps saved on this device and family favourites. Pick one to edit it again. Saving then updates the same map rather than making a copy.
+- **What comes back:** 2.0 restores the picture, objects, cut-out outline (new saves), scale and name. 3.0 restores the exact wall grid, heights, floor colour and tile size.
+- **Cross-builder:** opening a map of the other kind switches to its builder with the map loaded.
+- **Older saves:** 2.0 maps saved before this change open without the cut-out outline, and 3.0 maps rebuild their grid from the wall rectangles, which drops zero-height walls.
+
 ## Unreleased — Family high scores
 
 - **Family board:** every finished solo game (Felix, Athena, Dad's mode) is saved to a shared `snake_highscores` table in the Family database, with the player's name, mode and map. The start screen and the game-over screen show the family's top 8.

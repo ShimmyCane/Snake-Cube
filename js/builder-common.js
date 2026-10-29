@@ -242,5 +242,65 @@ const BK = (function () {
     return vp;
   }
 
-  return { gridToRects, pointInPoly, segDist, polyBBox, centroid, toast, download, slug, pack, save, makeViewport };
+  // ── Open a saved map: picker over this device and the family favourites ──
+  // Resolves { src:'store'|'cloud', id, kind, name } or null when closed.
+  function pickSaved() {
+    return new Promise(resolve => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#0d0d1a;border:1px solid #00f5c4;border-radius:6px;padding:14px;width:min(420px,100%);max-height:80vh;overflow:auto;font:0.7rem "Courier New",monospace;color:#ccc';
+      const head = document.createElement('div');
+      head.textContent = 'OPEN A SAVED MAP';
+      head.style.cssText = 'color:#00f5c4;letter-spacing:2px;margin-bottom:10px';
+      const list = document.createElement('div');
+      list.textContent = 'Loading…';
+      const foot = document.createElement('div');
+      foot.style.cssText = 'text-align:right;margin-top:12px';
+      const close = document.createElement('button');
+      close.textContent = 'CLOSE';
+      foot.appendChild(close);
+      box.append(head, list, foot);
+      wrap.appendChild(box);
+      document.body.appendChild(wrap);
+      const done = v => { wrap.remove(); resolve(v); };
+      close.addEventListener('click', () => done(null));
+      wrap.addEventListener('click', e => { if (e.target === wrap) done(null); });
+
+      const section = title => {
+        const t = document.createElement('div');
+        t.textContent = title;
+        t.style.cssText = 'color:#555;letter-spacing:1px;margin:12px 0 6px';
+        list.appendChild(t);
+      };
+      const row = (m, src) => {
+        const b = document.createElement('button');
+        b.style.cssText = 'display:block;width:100%;text-align:left;margin:4px 0;padding:8px 10px;white-space:normal';
+        const when = m.saved ? new Date(m.saved) : m.created_at ? new Date(m.created_at) : null;
+        b.textContent = (m.kind === 'maze' ? '🧩 ' : m.kind === 'world' ? '🌍 ' : '') + (m.name || m.id) +
+          (when ? '   ' + when.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '');
+        b.addEventListener('click', () => done({ src, id: m.id, kind: m.kind, name: m.name || m.id }));
+        list.appendChild(b);
+      };
+      (async () => {
+        let device = [], cloud = [], cloudErr = '';
+        try { device = window.MapStore && MapStore.available ? await MapStore.list() : []; } catch (e) { /* no local storage */ }
+        try { cloud = await MapCloud.list(); } catch (e) { cloudErr = e.message; }
+        list.textContent = '';
+        section('ON THIS DEVICE');
+        if (device.length) device.forEach(m => row(m, 'store')); else list.insertAdjacentHTML('beforeend', '<div style="color:#666">Nothing saved on this device.</div>');
+        section('FAMILY FAVORITES');
+        if (cloud.length) cloud.forEach(m => row(m, 'cloud'));
+        else list.insertAdjacentHTML('beforeend', `<div style="color:#666">${cloudErr ? 'Could not reach the family database.' : 'No favourites yet.'}</div>`);
+      })();
+    });
+  }
+  // Fetch a saved map's full JSON from this device or the family
+  async function loadSaved(src, id) {
+    const m = src === 'store' ? await MapStore.get(id) : await MapCloud.get(id);
+    if (!m) throw new Error('that saved map was not found');
+    return m;
+  }
+
+  return { gridToRects, pointInPoly, segDist, polyBBox, centroid, toast, download, slug, pack, save, makeViewport, pickSaved, loadSaved };
 })();

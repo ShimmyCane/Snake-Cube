@@ -56,6 +56,7 @@ input[type=color] { width: 34px; height: 26px; background: none; border: 1px sol
 <div id="toolbar">
   <a href="index.html" style="color:#888;text-decoration:none;font-size:0.62rem;border:1px solid #333;border-radius:3px;padding:4px 9px">🏠 GAME</a>
   <h1>MAP BUILDER <small>3.0 · MAZES</small></h1>
+  <button id="btn-open-saved" class="accent">📂 OPEN SAVED</button>
 </div>
 
 <div id="main">
@@ -454,7 +455,8 @@ function mapData() {
   // floor texture: 20 px per tile, a faint tile grid, optionally the source drawing ghosted in
   const cv = document.createElement('canvas'); cv.width = S.cols * CAR_PX; cv.height = S.rows * CAR_PX;
   const x = cv.getContext('2d');
-  x.fillStyle = $('floorc').value; x.fillRect(0, 0, cv.width, cv.height);
+  if (S.floorBase) x.drawImage(S.floorBase, 0, 0, cv.width, cv.height);   // a reopened maze keeps its floor
+  else { x.fillStyle = $('floorc').value; x.fillRect(0, 0, cv.width, cv.height); }
   const g = +$('ghost').value / 100;
   if (g > 0) { x.globalAlpha = g; x.drawImage(S.work, 0, 0, S.cols * T, S.rows * T, 0, 0, cv.width, cv.height); x.globalAlpha = 1; }
   x.strokeStyle = 'rgba(0,0,0,.07)'; x.lineWidth = 1; x.beginPath();
@@ -473,7 +475,9 @@ function mapData() {
   return BK.pack({
     id: 'maze-' + BK.slug(name) + '-' + Date.now().toString(36).slice(-4), name, kind: 'maze',
     canvas: cv, mime: 'image/png', carPixels: CAR_PX, gridCols: S.cols, gridRows: S.rows, scale: sc, objects,
-    extra: { tilePx: T },
+    // the cell grid itself is kept, so a reopened maze gets back every wall, including zero-height ones
+    extra: { tilePx: T, cells: Array.from(S.cells).join(''), floor: $('floorc').value,
+             hSolid: hS, hHatch: hH, ghost: +$('ghost').value },
   });
 }
 $('btn-fav').addEventListener('click', async () => {
@@ -493,6 +497,70 @@ $('btn-save').addEventListener('click', async () => {
   catch (e) { BK.toast(e.message, 5000); }
 });
 $('btn-dl').addEventListener('click', () => { if (!S.cells) return; const d = mapData(); BK.download(BK.slug(d.name) + '.json', JSON.stringify(d)); });
+
+// ── Open a saved maze and keep editing it ──
+function loadImg(url) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('the saved picture could not be read'));
+    im.src = url;
+  });
+}
+function cellsFromObjects(objs, cols, rows) {
+  // older saves: rebuild the grid from the wall rectangles
+  const cells = new Uint8Array(cols * rows);
+  for (const o of objs) {
+    if (o.src !== 'maze' || !o.pts || o.pts.length < 3) continue;
+    const v = o.texture === 'hatch' ? 2 : 1;
+    const c0 = Math.round(o.pts[0][0] / CAR_PX), c1 = Math.round(o.pts[1][0] / CAR_PX);
+    const r0 = Math.round(o.pts[0][1] / CAR_PX), r1 = Math.round(o.pts[2][1] / CAR_PX);
+    for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) if (r >= 0 && c >= 0 && r < rows && c < cols) cells[r * cols + c] = v;
+  }
+  return cells;
+}
+async function openMaze(map) {
+  const T = map.tilePx || 8, cols = map.gridCols, rows = map.gridRows;
+  const img = await loadImg(map.imageDataURL);
+  const w = document.createElement('canvas'); w.width = cols * T; w.height = rows * T;
+  w.getContext('2d').drawImage(img, 0, 0, w.width, w.height);
+  S.floorBase = map.cells ? img : null;           // the saved floor, redrawn on the next save
+  S.orig = w; S.work = w; S.crop = null; S.tile = T; S.cols = cols; S.rows = rows;
+  S.cells = map.cells ? Uint8Array.from(map.cells, ch => +ch) : cellsFromObjects(map.objects || [], cols, rows);
+  S.history = []; S.savedId = map.id;
+  $('mapname').value = map.name || 'My maze';
+  $('tile').value = T; S.tile = T;
+  const set = (id, v) => { $(id).value = v; $('v-' + id).textContent = v; };
+  set('hSolid', map.hSolid != null ? map.hSolid : 4);
+  set('hHatch', map.hHatch != null ? map.hHatch : 2);
+  set('scale', map.scale || 2);
+  set('ghost', 0);                                 // the ghost is already in the saved floor
+  if (map.floor) $('floorc').value = map.floor;
+  $('btn-gen').disabled = false; $('btn-save').disabled = $('btn-fav').disabled = false; $('btn-dl').disabled = false;
+  setMode('view'); vp.fit(w.width, w.height); updateScaleInfo(); vp.redraw();
+  status(`Opened "${map.name}" · ${cols}×${rows} tiles. Paint or regenerate, then SAVE to update it.`);
+  if (!map.cells) BK.toast('An older save: the wall grid was rebuilt from its rectangles.', 6000);
+}
+async function openSaved() {
+  const pick = await BK.pickSaved();
+  if (!pick) return;
+  if (pick.kind !== 'maze') { location.href = 'map-builder-2.html?open=' + pick.src + ':' + encodeURIComponent(pick.id); return; }
+  try { await openMaze(await BK.loadSaved(pick.src, pick.id)); }
+  catch (e) { BK.toast('Could not open it: ' + e.message, 6000); }
+}
+$('btn-open-saved').addEventListener('click', openSaved);
+async function openFromLink() {
+  const q = new URLSearchParams(location.search).get('open');
+  if (!q) return;
+  history.replaceState(null, '', location.pathname);
+  const i = q.indexOf(':');
+  try {
+    const map = await BK.loadSaved(q.slice(0, i), decodeURIComponent(q.slice(i + 1)));
+    if (map.kind !== 'maze') { location.href = 'map-builder-2.html?open=' + q; return; }
+    await openMaze(map);
+  } catch (e) { BK.toast('Could not open it: ' + e.message, 6000); }
+}
+openFromLink();
 
 vp.resize();
 setMode('view');

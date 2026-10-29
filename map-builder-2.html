@@ -72,6 +72,7 @@ input[type=range] { width: 100%; accent-color: #00f5c4; }
   <button class="stage-btn active" data-stage="map">① LOCATE</button>
   <button class="stage-btn" data-stage="edit" disabled>② EDIT</button>
   <button class="stage-btn" data-stage="3d" disabled>③ 3D PREVIEW</button>
+  <button id="btn-open-saved" class="accent">📂 OPEN SAVED</button>
 </div>
 
 <div id="main">
@@ -957,6 +958,7 @@ $('btn-clear-auto').addEventListener('click', () => {
 });
 $('ab-sens').addEventListener('input', e => { $('v-ab-sens').textContent = e.target.value; });
 updateGScale();
+openFromLink();
 
 // ── Auto trees ──────────────────────────────────────────────────────
 $('btn-auto').addEventListener('click', () => {
@@ -999,7 +1001,10 @@ function mapData() {
     canvas: B.canvas, mime: 'image/jpeg', quality: 0.9, carPixels: CAR_PX,
     gridCols: B.cols, gridRows: B.rows, scale: +$('gscale').value,
     objects: S.objects.map(({ id, ...rest }) => rest),
-    extra: { cellMeters: +B.cellM.toFixed(2), origin: B.center, attribution: 'Imagery © Esri / © OpenStreetMap contributors / © CARTO' },
+    // ringPx and greens let a reopened map keep its cut-out for auto-trees and the edge checks
+    extra: { cellMeters: +B.cellM.toFixed(2), origin: B.center, attribution: 'Imagery © Esri / © OpenStreetMap contributors / © CARTO',
+             ringPx: B.ringPx.map(p => [+p[0].toFixed(1), +p[1].toFixed(1)]),
+             greens: B.greens.map(g => g.map(p => [+p[0].toFixed(1), +p[1].toFixed(1)])) },
   });
 }
 $('btn-save').addEventListener('click', async () => {
@@ -1007,6 +1012,55 @@ $('btn-save').addEventListener('click', async () => {
   try { const d = mapData(); if (S.savedId) d.id = S.savedId; S.savedId = d.id; await BK.save(d); BK.toast('Saved. Find it in the game: DAD → MY MAPS'); }
   catch (e) { BK.toast(e.message, 5000); }
 });
+// ── Open a saved map and keep editing it ──
+function loadImg(url) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('the saved picture could not be read'));
+    im.src = url;
+  });
+}
+async function openWorldMap(map) {
+  if (S.busy) { BK.toast('Wait for the pull to finish first.'); return; }
+  const img = await loadImg(map.imageDataURL);
+  const W = map.imageWidth || img.naturalWidth, H = map.imageHeight || img.naturalHeight;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  cv.getContext('2d').drawImage(img, 0, 0, W, H);
+  S.baked = { canvas: cv, cols: map.gridCols, rows: map.gridRows, W, H, cellM: map.cellMeters || 3, z: 0, mpp: 0,
+              ringPx: map.ringPx || [[0, 0], [W, 0], [W, H], [0, H]], greens: map.greens || [],
+              center: map.origin || null, failed: 0, osmOk: true, pulled: {} };
+  S.objects = (map.objects || []).map(o => Object.assign({}, o, { id: S.nextId++ }));
+  S.savedId = map.id; S.history = []; S.selected = null; S.drawing = null; S.fitted = null; S.dragging = null;
+  $('mapname').value = map.name || 'My place';
+  $('gscale').value = map.scale || 3; updateGScale();
+  ['edit', '3d'].forEach(s => document.querySelector(`.stage-btn[data-stage="${s}"]`).disabled = false);
+  $('tree-info').textContent = '';
+  setStage('edit'); updateSel(); updateShapeInfo();
+  status(`Opened "${map.name}" · ${map.gridCols}×${map.gridRows} cells · ${S.objects.length} objects. Edit, then SAVE to update it.`);
+  if (!map.ringPx) BK.toast('An older save: its cut-out outline was not kept, so auto-trees use the whole picture.', 7000);
+}
+async function openSaved() {
+  const pick = await BK.pickSaved();
+  if (!pick) return;
+  if (pick.kind !== 'world') { location.href = 'map-builder-3.html?open=' + pick.src + ':' + encodeURIComponent(pick.id); return; }
+  try { await openWorldMap(await BK.loadSaved(pick.src, pick.id)); }
+  catch (e) { BK.toast('Could not open it: ' + e.message, 6000); }
+}
+$('btn-open-saved').addEventListener('click', openSaved);
+// arriving from Map Builder 3.0 with ?open=store:<id> or cloud:<id>
+async function openFromLink() {
+  const q = new URLSearchParams(location.search).get('open');
+  if (!q) return;
+  history.replaceState(null, '', location.pathname);
+  const i = q.indexOf(':');
+  try {
+    const map = await BK.loadSaved(q.slice(0, i), decodeURIComponent(q.slice(i + 1)));
+    if (map.kind === 'maze') { location.href = 'map-builder-3.html?open=' + q; return; }
+    await openWorldMap(map);
+  } catch (e) { BK.toast('Could not open it: ' + e.message, 6000); }
+}
+
 $('btn-fav').addEventListener('click', async () => {
   if (!S.baked) return;
   const d = mapData(); if (S.savedId) d.id = S.savedId;

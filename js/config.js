@@ -9,7 +9,7 @@
 // ════════════════════════════════════════
 const CFG_AUDIO = {
   FOLDER:       'music/',
-  PLAYLIST:     ['felix_piano_1.mp4', 'ying_piano_1.mp4', 'athena_piano_1.mp4', 'athena_piano_2.mp4'],
+  PLAYLIST:     ['felix_piano_1.mp4', 'felix_piano_2.mp4', 'ying_piano_1.mp4', 'athena_piano_1.mp4', 'athena_piano_2.mp4'],
   VOLUME:       0.55,
   AUTO_SHUFFLE: true,
 };

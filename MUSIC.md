@@ -9,6 +9,7 @@ Playback: the playlist shuffles on each load (`AUTO_SHUFFLE`), at volume `0.55`.
 | File | In playlist | Piece / composer | Notes |
 |---|---|---|---|
 | `felix_piano_1.mp4` | yes | — | |
+| `felix_piano_2.mp4` | yes | — | 51 s. AAC in an `.m4a` container, saved under `.mp4` to match the other tracks. |
 | `ying_piano_1.mp4` | yes | — | |
 | `athena_piano_1.mp4` | yes | — | |
 | `athena_piano_2.mp4` | yes | — | |

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ORDER = ['config', 'roman', 'grid', 'snake', 'rules', 'bots', 'game'];
+const ORDER = ['config', 'roman', 'geom', 'arena', 'snake', 'rules', 'bots', 'game'];
 
 function load(extra = []) {
   const ctx = vm.createContext({});

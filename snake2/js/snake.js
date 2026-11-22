@@ -1,90 +1,83 @@
 // ════════════════════════════════════════════════════════════════════
 //  SNAKE — the snake model. Pure, no DOM.
 //
-//  Invariant (checked by the tests after every step):
-//     cells.length + pendingGrow === romanLength(value)
-//  The body is never stored as symbols; the numeral is read from value.
+//  Invariant (checked by the tests): once the body has settled,
+//     bodyLen === targetLen === (romanLength(value) - 1) * SYMBOL_STEP
+//  The body is the trail behind the head. Each symbol sits SYMBOL_STEP further back.
 // ════════════════════════════════════════════════════════════════════
 
 function newSnake2(opts) {
-  return {
+  const s = {
     id: opts.id,
     name: opts.name,
     isPlayer: !!opts.isPlayer,
     colour: opts.colour,
     value: CFG2.START_VALUE,
-    cells: [{ c: opts.c, r: opts.r }],        // head first
-    prevCells: null,                          // last tick's cells, for smooth drawing
-    dir: { dc: opts.dc, dr: opts.dr },
-    turnQueue: [],                            // player only
-    pendingGrow: 0,
+    x: opts.x,
+    y: opts.y,
+    angle: opts.angle,            // where the head points now
+    target: opts.angle,           // where the head is turning to
+    trail: [{ x: opts.x, y: opts.y }],
+    bodyLen: 0,                   // how far back the body reaches right now
+    targetLen: 0,                 // how far back it must reach for the current numeral
+    symPts: null,                 // where each symbol is, after the last step
+    prevSymPts: null,             // where they were one step earlier, for smooth drawing
     alive: true,
-    respawnAt: 0,                             // bots only
+    respawnAt: 0,                 // bots only
   };
+  s.symPts = symbolPoints(s);
+  return s;
 }
 
-function snakeHead(s) {
-  return s.cells[0];
+// Body length a numeral needs: one symbol per SYMBOL_STEP, the head counts as the first.
+function bodyLenFor(value) {
+  return (romanLength(value) - 1) * CFG2.SYMBOL_STEP;
 }
 
-function snakeTail(s) {
-  return s.cells[s.cells.length - 1];
+// Where each symbol is drawn: index 0 is the head. Symbols past the body's reach are left out.
+function symbolPoints(s) {
+  const n = romanLength(s.value);
+  const pts = [];
+  for (let k = 0; k < n; k++) {
+    const arc = k * CFG2.SYMBOL_STEP;
+    if (arc > s.bodyLen + 1e-6) break;
+    pts.push(pointAtArc(s.trail, arc));
+  }
+  return pts;
 }
 
-// The numeral symbol drawn on body cell i (0 = head).
-function symbolAt(s, i) {
-  const tok = numeralTokens(s.value)[i];
-  return tok ? tok.text : '';
-}
-
-// Set a new value and rewrite the body to match the numeral.
-// Longer numeral: cells are added from the tail over the next ticks (pendingGrow).
-// Shorter numeral: the extra tail cells drop off at once (a collapse).
-// Returns { from, to, dropped } when cells were dropped, otherwise null.
+// Set a new value. A longer numeral grows the body over the next steps (growBody).
+// A shorter one drops the extra body at once: a collapse. Returns { from, to, dropped } then.
 function setValue(s, newValue) {
   const from = s.value;
   s.value = newValue;
-  const target = romanLength(newValue);
-  if (target >= s.cells.length) {
-    s.pendingGrow = target - s.cells.length;
-    return null;
+  s.targetLen = bodyLenFor(newValue);
+  if (s.targetLen < s.bodyLen) {
+    s.bodyLen = s.targetLen;
+    return { from, to: newValue, dropped: romanLength(from) - romanLength(newValue) };
   }
-  const dropped = s.cells.length - target;
-  s.cells.length = target;
-  s.pendingGrow = 0;
-  return { from, to: newValue, dropped };
+  return null;
 }
 
-// Where the head will be after this tick, before collisions are checked.
-function plannedHead(s) {
-  const h = snakeHead(s);
-  return { c: h.c + s.dir.dc, r: h.r + s.dir.dr };
+// Turn toward the target heading, by at most TURN_RATE.
+function turnToward(s) {
+  const d = angleDiff(s.angle, s.target);
+  const step = Math.max(-CFG2.TURN_RATE, Math.min(CFG2.TURN_RATE, d));
+  s.angle = wrapAngle(s.angle + step);
 }
 
-// Apply a queued player turn. Reversals are refused. The queue is capped.
-function queueTurn(s, dir) {
-  const last = s.turnQueue.length ? s.turnQueue[s.turnQueue.length - 1] : s.dir;
-  if (isReverse(last, dir)) return false;
-  if (last.dc === dir.dc && last.dr === dir.dr) return false;
-  if (s.turnQueue.length >= CFG2.TURN_QUEUE) return false;
-  s.turnQueue.push(dir);
-  return true;
+// Grow the body toward its target, a little each step.
+function growBody(s) {
+  if (s.bodyLen < s.targetLen) s.bodyLen = Math.min(s.targetLen, s.bodyLen + CFG2.GROW_PER_TICK);
 }
 
-// Take the next queued turn, if any, as the snake's direction for this tick.
-function takeTurn(s) {
-  if (s.turnQueue.length) {
-    const d = s.turnQueue.shift();
-    s.dir = { dc: d.dc, dr: d.dr };
-  }
-}
-
-// Move the snake one cell to `nh`. Eating skips the tail pop, so the body grows.
-// Otherwise the tail pops, unless growth is still pending.
-function moveSnake(s, nh, eating) {
-  s.prevCells = s.cells.map(c => ({ c: c.c, r: c.r }));
-  s.cells.unshift({ c: nh.c, r: nh.r });
-  if (eating) return;
-  if (s.pendingGrow > 0) s.pendingGrow -= 1;
-  else s.cells.pop();
+// Move one step along the current heading, then grow and trim the trail.
+function advanceSnake(s) {
+  s.prevSymPts = s.symPts;
+  s.x += Math.cos(s.angle) * CFG2.SPEED;
+  s.y += Math.sin(s.angle) * CFG2.SPEED;
+  s.trail.unshift({ x: s.x, y: s.y });
+  growBody(s);
+  trimTrail(s.trail, s.bodyLen + 2);
+  s.symPts = symbolPoints(s);
 }

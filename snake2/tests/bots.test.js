@@ -3,29 +3,34 @@ const assert = require('node:assert/strict');
 const { load } = require('./load');
 
 const ctx = load();
-const { newSnake2, botChooseDir, occupiedCells, makeRng, DIRS, isWall, cellKey } = ctx;
+const { createGame, botChooseAim, angleDiff, CFG2 } = ctx;
 
-test('a bot never steps into a wall when a safe move exists', () => {
-  const rng = makeRng(11);
-  for (let i = 0; i < 300; i++) {
-    const c = 2 + Math.floor(rng() * 46), r = 2 + Math.floor(rng() * 46);
-    const bot = newSnake2({ id: 'b', name: 'b', isPlayer: false, colour: '#000', c, r, dc: 1, dr: 0 });
-    const snakes = [bot];
-    const d = botChooseDir(bot, snakes, new Set(), occupiedCells(snakes));
-    assert.ok(!isWall(c + d.dc, r + d.dr), 'picked a wall at ' + c + ',' + r);
-  }
+// A quiet board: the player parked far away, one bot, the snacks placed by the test.
+function quiet(botAt, botAngle) {
+  const G = createGame({ seed: 3, bots: 1 });
+  G.player.x = 25; G.player.y = 10;
+  G.player.trail = [{ x: 25, y: 10 }];
+  const bot = G.snakes[1];
+  bot.x = botAt.x; bot.y = botAt.y; bot.angle = botAngle; bot.target = botAngle;
+  bot.trail = [{ x: botAt.x, y: botAt.y }];
+  G.snacks = [];
+  return { G, bot };
+}
+
+test('a bot near the stone border turns away from it', () => {
+  const { G, bot } = quiet({ x: 2.5, y: 25 }, Math.PI);   // heading left, into the wall
+  const a = botChooseAim(bot, G);
+  assert.ok(Math.cos(a) > -0.2, `chose ${a}, which still points into the wall`);
 });
 
 test('a bot heads straight for a snack in an open room', () => {
-  const bot = newSnake2({ id: 'b', name: 'b', isPlayer: false, colour: '#000', c: 10, r: 25, dc: 0, dr: -1 });
-  const snakes = [bot];
-  const snacks = new Set([cellKey(16, 25)]);
-  const d = botChooseDir(bot, snakes, snacks, occupiedCells(snakes));
-  assert.deepEqual({ dc: d.dc, dr: d.dr }, { dc: 1, dr: 0 });
+  const { G, bot } = quiet({ x: 10, y: 25 }, 0);
+  G.snacks.push({ x: 15, y: 25, value: 1 });
+  assert.ok(Math.abs(angleDiff(0, botChooseAim(bot, G))) < 0.3);
 });
 
-test('a bot never reverses onto its own neck', () => {
-  const bot = newSnake2({ id: 'b', name: 'b', isPlayer: false, colour: '#000', c: 10, r: 25, dc: 1, dr: 0 });
-  const d = botChooseDir(bot, [bot], new Set([cellKey(11, 25)]), occupiedCells([bot]));
-  assert.ok(!(d.dc === -1 && d.dr === 0));
+test('a bot never turns back on itself in one go', () => {
+  const { G, bot } = quiet({ x: 25, y: 25 }, 0);
+  const a = botChooseAim(bot, G);
+  assert.ok(Math.abs(angleDiff(bot.angle, a)) <= 2.1 + 1e-9);
 });

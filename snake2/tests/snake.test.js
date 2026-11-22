@@ -3,99 +3,72 @@ const assert = require('node:assert/strict');
 const { load, plain } = require('./load');
 
 const ctx = load();
-const { newSnake2, setValue, moveSnake, queueTurn, takeTurn, romanLength, DIRS, makeRng } = ctx;
+const { newSnake2, setValue, bodyLenFor, advanceSnake, turnToward, romanLength, CFG2 } = ctx;
 
-function snakeWith(value, cellCount) {
-  const s = newSnake2({ id: 't', name: 't', isPlayer: true, colour: '#000', c: 20, r: 20, dc: 1, dr: 0 });
-  s.cells = Array.from({ length: cellCount }, (_, i) => ({ c: 20 - i, r: 20 }));
-  s.value = value;
+const make = (value = 1) => {
+  const s = newSnake2({ id: 'x', name: 'x', colour: '#000', x: 10, y: 10, angle: 0 });
+  if (value !== 1) { setValue(s, value); s.bodyLen = s.targetLen; }
   return s;
-}
+};
 
-const invariant = s => s.cells.length + s.pendingGrow === romanLength(s.value);
-
-test('a new snake is I: one cell, invariant holds', () => {
-  const s = newSnake2({ id: 't', name: 't', isPlayer: true, colour: '#000', c: 5, r: 5, dc: 1, dr: 0 });
+test('a new snake is I: a head and no body', () => {
+  const s = make();
   assert.equal(s.value, 1);
-  assert.equal(s.cells.length, 1);
-  assert.ok(invariant(s));
+  assert.equal(s.bodyLen, 0);
+  assert.equal(s.symPts.length, 1);
 });
 
-test('IV collapse: III eats I and becomes a lone head, IV, with no tail', () => {
-  const s = snakeWith(3, 3);
-  const collapse = setValue(s, 4);
-  assert.deepEqual(plain(collapse), { from: 3, to: 4, dropped: 2 });
-  assert.equal(s.cells.length, 1);
-  assert.equal(s.pendingGrow, 0);
-  assert.ok(invariant(s));
+test('the body length a numeral needs: one symbol per step after the head', () => {
+  assert.equal(bodyLenFor(1), 0);
+  assert.equal(bodyLenFor(2), CFG2.SYMBOL_STEP);
+  assert.equal(bodyLenFor(4), 0, 'IV is one symbol: one head, no body');
+  assert.equal(bodyLenFor(3), 2 * CFG2.SYMBOL_STEP);
 });
 
-test('growing: II from I adds one cell over the next tick', () => {
-  const s = snakeWith(1, 1);
-  assert.equal(setValue(s, 2), null);
-  assert.equal(s.cells.length, 1);
-  assert.equal(s.pendingGrow, 1);
-  assert.ok(invariant(s));
-  moveSnake(s, { c: 21, r: 20 }, false);      // growing: the tail stays
-  assert.equal(s.cells.length, 2);
-  assert.equal(s.pendingGrow, 0);
-  assert.ok(invariant(s));
+test('growing: a longer numeral lengthens the body over the next steps', () => {
+  const s = make();
+  assert.equal(setValue(s, 2), null, 'no collapse on growth');
+  assert.equal(s.bodyLen, 0, 'the body grows over time, not at once');
+  for (let i = 0; i < 4; i++) advanceSnake(s);
+  assert.equal(s.bodyLen, bodyLenFor(2));
 });
 
-test('eating skips the tail pop, so the body grows out of the tail', () => {
-  const s = snakeWith(1, 2);
-  moveSnake(s, { c: 21, r: 20 }, true);
-  assert.equal(s.cells.length, 3);
+test('collapse: III eats I and becomes IV, so the body drops at once', () => {
+  const s = make(3);
+  const c = plain(setValue(s, 4));
+  assert.deepEqual(c, { from: 3, to: 4, dropped: 2 });
+  assert.equal(s.bodyLen, 0);
+  assert.equal(s.targetLen, 0);
 });
 
-test('a plain move keeps the length', () => {
-  const s = snakeWith(1, 3);
-  moveSnake(s, { c: 21, r: 20 }, false);
-  assert.equal(s.cells.length, 3);
-  assert.deepEqual(plain(s.cells[0]), { c: 21, r: 20 });
+test('the body settles to the numeral: bodyLen reaches the target and stays there', () => {
+  const s = make();
+  setValue(s, 21);
+  for (let i = 0; i < 30; i++) advanceSnake(s);
+  assert.equal(s.bodyLen, bodyLenFor(21));
+  assert.equal(s.targetLen, romanLength(21) - 1 === 0 ? 0 : (romanLength(21) - 1) * CFG2.SYMBOL_STEP);
 });
 
-test('the invariant holds through a long random run of eats and moves', () => {
-  const rng = makeRng(7);
-  const s = snakeWith(1, 1);
-  for (let i = 0; i < 4000; i++) {
-    const head = s.cells[0];
-    const nh = { c: head.c + 1, r: head.r };
-    if (rng() < 0.3) {
-      // Mirrors the game: move (eating skips the pop), then rewrite the value.
-      const amount = [1, 5, 10][Math.floor(rng() * 3)];
-      moveSnake(s, nh, true);
-      setValue(s, Math.min(s.value + amount, 2021));
-    } else {
-      moveSnake(s, nh, false);
-    }
-    assert.ok(invariant(s), 'step ' + i + ' value ' + s.value);
+test('a head turns at TURN_RATE at most, toward its target', () => {
+  const s = make();
+  s.target = 1.0;
+  turnToward(s);
+  assert.ok(Math.abs(s.angle - CFG2.TURN_RATE) < 1e-9, 'one step turns by TURN_RATE');
+  for (let i = 0; i < 20; i++) turnToward(s);
+  assert.ok(Math.abs(s.angle - 1.0) < 1e-9, 'it gets there in time');
+});
+
+test('a step moves the head SPEED along its heading and keeps the trail trimmed', () => {
+  const s = make();
+  advanceSnake(s);
+  assert.ok(Math.abs(s.x - (10 + CFG2.SPEED)) < 1e-9);
+  assert.ok(Math.abs(s.y - 10) < 1e-9);
+  setValue(s, 3);
+  s.bodyLen = s.targetLen;
+  for (let i = 0; i < 50; i++) advanceSnake(s);
+  let arc = 0;
+  for (let i = 0; i + 1 < s.trail.length; i++) {
+    arc += Math.hypot(s.trail[i + 1].x - s.trail[i].x, s.trail[i + 1].y - s.trail[i].y);
   }
-});
-
-test('queueTurn refuses a reversal and a repeat, and caps the queue', () => {
-  const s = snakeWith(1, 1);                     // facing right
-  const [up, down, left, right] = [DIRS[0], DIRS[1], DIRS[2], DIRS[3]];
-  assert.equal(queueTurn(s, left), false, 'reverse of right');
-  assert.equal(queueTurn(s, right), false, 'same as current');
-  assert.equal(queueTurn(s, up), true);
-  assert.equal(queueTurn(s, down), false, 'reverse of the queued up');
-  assert.equal(queueTurn(s, left), true, 'second slot');
-  assert.equal(queueTurn(s, down), false, 'queue full (only 2 turns allowed)');
-  takeTurn(s);
-  assert.deepEqual(plain(s.dir), { dc: 0, dr: -1 });
-});
-
-test('the head is part of the number: XX is head X + tail X, VI is V then I', () => {
-  const twenty = snakeWith(20, 2);
-  assert.equal(twenty.cells.length, 2);
-  assert.equal(ctx.symbolAt(twenty, 0), 'X');
-  assert.equal(ctx.symbolAt(twenty, 1), 'X');
-  const six = snakeWith(6, 2);
-  assert.equal(ctx.symbolAt(six, 0), 'V');
-  assert.equal(ctx.symbolAt(six, 1), 'I');
-  const four = snakeWith(4, 1);
-  assert.equal(four.cells.length, 1, 'four is only a head');
-  assert.equal(ctx.symbolAt(four, 0), 'IV');
-  assert.ok(invariant(four));
+  assert.ok(arc <= s.bodyLen + 3, 'the trail does not grow without limit');
 });

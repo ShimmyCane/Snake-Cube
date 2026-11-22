@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
-//  SNAKE II — config. Plan: ../snake2/schematic_snake2.md (section 17)
-//  Plain script: every snake2/js file shares one global scope.
+//  SNAKE II — config. Plain script: every snake2/js file shares one global scope.
+//  Movement is smooth, not on a grid. One tile is one unit of board space.
 // ════════════════════════════════════════════════════════════════════
 
 // Read by ../js/music.js (shared with the main game)
@@ -12,27 +12,33 @@ const CFG_AUDIO = {
 };
 
 const CFG2 = {
-  COLS: 50, ROWS: 50,          // board including the stone wall ring
-  CELL_PX: 35,                 // drawn cell size, the same on every device: bigger screens show more map
+  COLS: 50, ROWS: 50,          // board size in tiles, including the stone border
+  WALL_T: 1,                   // stone border thickness, in tiles
+  CELL_PX: 35,                 // drawn size of one tile: the same on every device, bigger screens show more map
   MINI_PX_MIN: 110,            // minimap size on a phone
   MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
-  TICK_MS: 243,                // one step for every snake (30% slower than 170)
+  TICK_MS: 243,                // one simulation step
+  SPEED: 1.0,                  // tiles a snake moves per step
+  TURN_RATE: 0.3,              // radians a snake can turn per step (about 17 degrees)
+  HEAD_R: 0.42,                // head radius, in tiles
+  BODY_R: 0.42,                // body radius, in tiles: a head this close to a body crashes
+  SYMBOL_STEP: 0.85,           // distance between symbols along the body
+  GROW_PER_TICK: 0.5,          // body length gained per step while a numeral grows
+  NECK_ARC: 2.0,               // a snake's own first tiles are its neck: they cannot crash it
+  EAT_R: 0.8,                  // a head this close to a snack eats it
   MAX_VALUE: 3999,             // MMXXI is not a goal in FreePlay; 3999 (MMMCMXCIX) is the largest numeral
-  JOY_DEAD_PX: 14,             // the corner stick ignores pushes shorter than this
-  JOY_MAX_PX: 42,              // how far the stick knob travels
   START_VALUE: 1,              // every snake starts as I
   SNACKS_ON_FIELD: 20,         // snacks kept on the board with the default number of bots
   SNACKS_PER_EXTRA_BOT: 4,     // more rivals eat more, so the field grows with them
   BOTS: 3,                     // default rival snakes
   BOTS_MIN: 1,
   BOTS_MAX: 10,                // the settings stepper stops here
-  SHATTER_RADIUS: 3,           // a crashed snake's pieces land within this many cells
+  SHATTER_RADIUS: 3,           // a crashed snake's pieces land within this many tiles
   SHATTER_FLY_MS: 420,         // how long the pieces take to fly out
   BURST_MS: 520,               // the little explosion
   END_HOLD_MS: 1100,           // after a crash, before fading to the end screen
   BOT_RESPAWN_MS: 3000,
   BOT_SAFE_DISTANCE: 8,        // a respawning bot needs this much room from you
-  TURN_QUEUE: 2,               // buffered player turns
   COUNTDOWN_STEP_MS: 700,
   MAX_SNACKS: 90,              // bot wrecks add snacks; keep the field readable
 };

@@ -140,7 +140,7 @@ function boot() {
   if (typeof MUS !== 'undefined' && !settings.music && !MUS.muted) MUS.toggle();
 
   installInput(canvas, $('stick'), {
-    onTurn: dir => { if (G) setPlayerTurn(G, dir); },
+    onAim: angle => setPlayerAim(G, angle),
     onPause: () => { if (G && G.state === 'playing') setPaused(!paused); },
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });

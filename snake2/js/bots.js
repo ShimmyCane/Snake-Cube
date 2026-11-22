@@ -1,80 +1,42 @@
 // ════════════════════════════════════════════════════════════════════
-//  BOTS — pick a direction. Pure, no DOM.
-//  Plan: schematic_snake2.md section 12. Bots never chase the player.
+//  BOTS — choose where to turn. Pure, no DOM.
+//  Each step a bot looks at directions it could turn to, measures how far it can go
+//  clear in each, and leans toward the nearest snack. Bots never chase the player.
 // ════════════════════════════════════════════════════════════════════
 
-const BOT_BFS_CAP = 600;   // visited cells per search
-const BOT_FLOOD_CAP = 200; // flood-fill cells per candidate
+const BOT_HEADINGS = 24;           // candidate headings, evenly spaced
+const BOT_LOOK = 6;            // how far ahead a bot checks, in tiles
+const BOT_PROBE = 0.5;         // spacing of the checks along that line
+const BOT_SNACK_RANGE = 12;    // a bot goes for snacks this close
+const BOT_TURN_LIMIT = 2.1;    // no candidate turns more than this (about 120 degrees) in one go
 
-// Cells next to any other live head: a bot avoids stepping there.
-function headDanger(snakes, self) {
-  const danger = new Set();
-  for (const s of snakes) {
-    if (s === self || !s.alive) continue;
-    const h = snakeHead(s);
-    for (const d of DIRS) danger.add(cellKey(h.c + d.dc, h.r + d.dr));
+// How far from (x, y) along `angle` the way stays clear, up to BOT_LOOK.
+function clearance(x, y, angle, snakes, self) {
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  for (let t = BOT_PROBE; t <= BOT_LOOK; t += BOT_PROBE) {
+    const px = x + dx * t, py = y + dy * t;
+    if (!inPlayArea(px, py, CFG2.HEAD_R + 0.2) || bodyHit(px, py, snakes, self, 0.2)) return t - BOT_PROBE;
   }
-  return danger;
+  return BOT_LOOK;
 }
 
-// Number of free cells reachable from (c, r), capped. Measures how roomy a move is.
-function floodCount(c, r, blocked) {
-  const seen = new Set([cellKey(c, r)]);
-  const queue = [[c, r]];
-  let i = 0;
-  while (i < queue.length && seen.size < BOT_FLOOD_CAP) {
-    const [x, y] = queue[i++];
-    for (const d of DIRS) {
-      const nx = x + d.dc, ny = y + d.dr;
-      const k = cellKey(nx, ny);
-      if (isWall(nx, ny) || blocked.has(k) || seen.has(k)) continue;
-      seen.add(k);
-      queue.push([nx, ny]);
-    }
+// The heading a bot should aim for this step.
+function botChooseAim(bot, G) {
+  let desired = null, nearest = BOT_SNACK_RANGE;
+  for (const sn of G.snacks) {
+    const d = Math.hypot(sn.x - bot.x, sn.y - bot.y);
+    if (d < nearest) { nearest = d; desired = Math.atan2(sn.y - bot.y, sn.x - bot.x); }
   }
-  return seen.size;
-}
 
-// First step of a shortest path from the head to any snack, or null.
-function firstStepToSnack(head, snackKeys, blocked) {
-  const start = cellKey(head.c, head.r);
-  const firstDir = new Map();
-  const seen = new Set([start]);
-  const queue = [{ c: head.c, r: head.r, first: null }];
-  let i = 0;
-  while (i < queue.length && seen.size < BOT_BFS_CAP) {
-    const cur = queue[i++];
-    if (cur.first && snackKeys.has(cellKey(cur.c, cur.r))) return cur.first;
-    for (const d of DIRS) {
-      const nc = cur.c + d.dc, nr = cur.r + d.dr;
-      const k = cellKey(nc, nr);
-      if (isWall(nc, nr) || blocked.has(k) || seen.has(k)) continue;
-      seen.add(k);
-      const first = cur.first || d;
-      queue.push({ c: nc, r: nr, first });
-    }
+  let pick = null, score = -Infinity;
+  for (let i = 0; i < BOT_HEADINGS; i++) {
+    const a = (i / BOT_HEADINGS) * TAU;
+    if (Math.abs(angleDiff(bot.angle, a)) > BOT_TURN_LIMIT) continue;
+    const room = clearance(bot.x, bot.y, a, G.snakes, bot);
+    if (room < 1) continue;
+    let sc = room;
+    if (desired !== null) sc -= 2 * Math.abs(angleDiff(a, desired));
+    if (sc > score) { score = sc; pick = a; }
   }
-  return null;
-}
-
-// Pick the next direction for a bot. `blocked` is the set of occupied cells.
-function botChooseDir(bot, snakes, snackKeys, blocked) {
-  const head = snakeHead(bot);
-  const danger = headDanger(snakes, bot);
-  const options = DIRS.filter(d => !isReverse(d, bot.dir));
-  const safe = options.filter(d => {
-    const c = head.c + d.dc, r = head.r + d.dr, k = cellKey(c, r);
-    return !isWall(c, r) && !blocked.has(k) && !danger.has(k);
-  });
-  if (!safe.length) return bot.dir;   // no safe move: it will crash and respawn
-
-  const toSnack = firstStepToSnack(head, snackKeys, blocked);
-  if (toSnack && safe.some(d => d.dc === toSnack.dc && d.dr === toSnack.dr)) return toSnack;
-
-  let best = safe[0], bestRoom = -1;
-  for (const d of safe) {
-    const room = floodCount(head.c + d.dc, head.r + d.dr, blocked);
-    if (room > bestRoom) { bestRoom = room; best = d; }
-  }
-  return best;
+  return pick === null ? bot.angle : pick;
 }

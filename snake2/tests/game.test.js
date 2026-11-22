@@ -227,6 +227,20 @@ test('the cut-off symbols become coins of their own values, and the victim keeps
   assert.deepEqual(G.snacks.map(s => s.value), [10, 5, 1, 1, 1], 'the cut X V I I I become coins');
 });
 
+test('a bumped snake can reclaim its own cut pieces, and no one else can until the window closes', () => {
+  const G = createGame({ seed: 16, bots: 2 });
+  const v = G.snakes[1], other = G.snakes[2];
+  growVictim(G, v, 38);
+  G.snacks = [];
+  G.snackTarget = 0;
+  ctx.bumpBody(G, v, 2 * CFG2.SYMBOL_STEP, 1000);
+  const piece = G.snacks[0];
+  assert.equal(piece.owner, v.id);
+  assert.equal(ctx.canEat(other, piece, 1000 + 100), false, 'a rival cannot take it yet');
+  assert.equal(ctx.canEat(v, piece, 1000 + 100), true, 'the owner can');
+  assert.equal(ctx.canEat(other, piece, 1000 + CFG2.RECLAIM_MS), true, 'after the window it is a normal snack');
+});
+
 test('the numeral left after a bump is always canonical, for every value', () => {
   for (let v = 1; v <= 3999; v++) {
     const tokens = numeralTokens(v);

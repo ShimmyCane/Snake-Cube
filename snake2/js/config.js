@@ -41,6 +41,7 @@ const CFG2 = {
   BOT_SAFE_DISTANCE: 8,        // a respawning bot needs this much room from you
   COUNTDOWN_STEP_MS: 700,
   MAX_SNACKS: 90,              // bot wrecks add snacks; keep the field readable
+  RECLAIM_MS: 8000,            // pieces cut from a bumped snake are its own for this long
 };
 
 // Snack value odds. Values never scale up as the snake grows.

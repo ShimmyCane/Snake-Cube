@@ -19,7 +19,6 @@ const CFG2 = {
   MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
   TICK_MS: 243,                // one simulation step
   SPEED: 1.0,                  // tiles a snake moves per step
-  TURN_RATE: 0.3,              // radians a snake can turn per step (about 17 degrees)
   HEAD_R: 0.42,                // head radius, in tiles
   BODY_R: 0.42,                // body radius, in tiles: a head this close to a body crashes
   SYMBOL_STEP: 0.85,           // distance between symbols along the body
@@ -41,6 +40,7 @@ const CFG2 = {
   BOT_SAFE_DISTANCE: 8,        // a respawning bot needs this much room from you
   COUNTDOWN_STEP_MS: 700,
   MAX_SNACKS: 90,              // bot wrecks add snacks; keep the field readable
+  RECLAIM_MS: 8000,            // pieces cut from a bumped snake are its own for this long
 };
 
 // Snack value odds. Values never scale up as the snake grows.

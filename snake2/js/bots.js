@@ -23,9 +23,8 @@ function clearance(x, y, angle, snakes, self) {
 // The heading a bot should aim for this step.
 function botChooseAim(bot, G) {
   let desired = null, nearest = BOT_SNACK_RANGE;
-  const minValue = minEatable(bot.value);
   for (const sn of G.snacks) {
-    if (sn.value < minValue) continue;
+    if (!canEat(bot, sn, G.now || 0)) continue;
     const d = Math.hypot(sn.x - bot.x, sn.y - bot.y);
     if (d < nearest) { nearest = d; desired = Math.atan2(sn.y - bot.y, sn.x - bot.x); }
   }

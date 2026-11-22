@@ -39,14 +39,14 @@ test('the player moves smoothly: one SPEED step along its heading per step', () 
   assert.ok(Math.abs(G.player.y - y0) < 1e-9);
 });
 
-test('aiming turns the head there, but only at TURN_RATE a step', () => {
+test('aiming turns the head at once: the next step moves that way', () => {
   const G = createGame({ seed: 2, bots: 1 });
   G.snacks = [];
   setPlayerAim(G, Math.PI / 2);     // straight down the screen
+  const y0 = G.player.y;
   stepGame(G, 0);
-  assert.ok(Math.abs(G.player.angle - CFG2.TURN_RATE) < 1e-9);
-  for (let i = 0; i < 20; i++) stepGame(G, 0);
-  assert.ok(Math.abs(G.player.angle - Math.PI / 2) < 1e-9);
+  assert.equal(G.player.angle, Math.PI / 2);
+  assert.ok(Math.abs(G.player.y - (y0 + CFG2.SPEED)) < 1e-9, 'one full step down');
 });
 
 test('eating a I snack grows the body toward II', () => {
@@ -102,8 +102,9 @@ test('a crashed bot breaks apart: its body symbols become coins of the same valu
   bot.trail = [{ x: 1.6, y: 30 }, { x: 2.6, y: 30 }, { x: 3.6, y: 30 }];
   G.snacks = [];
   G.snackTarget = 0;                    // no restocking, so only the pieces are on the field
-  stepGame(G, 0);
-  assert.equal(bot.alive, false);
+  // Crash it directly: a bot now turns at once, so it would simply turn away from the wall.
+  bot.alive = false;
+  ctx.shatter(G, bot, 0);
   const pieces = G.snacks.filter(s => s.piece);
   assert.ok(pieces.length >= 5, `${pieces.length} pieces`);
   for (const p of pieces) {
@@ -225,6 +226,20 @@ test('the cut-off symbols become coins of their own values, and the victim keeps
   ctx.bumpBody(G, v, 2 * CFG2.SYMBOL_STEP);
   assert.equal(v.value, 20, 'XX remains');
   assert.deepEqual(G.snacks.map(s => s.value), [10, 5, 1, 1, 1], 'the cut X V I I I become coins');
+});
+
+test('a bumped snake can reclaim its own cut pieces, and no one else can until the window closes', () => {
+  const G = createGame({ seed: 16, bots: 2 });
+  const v = G.snakes[1], other = G.snakes[2];
+  growVictim(G, v, 38);
+  G.snacks = [];
+  G.snackTarget = 0;
+  ctx.bumpBody(G, v, 2 * CFG2.SYMBOL_STEP, 1000);
+  const piece = G.snacks[0];
+  assert.equal(piece.owner, v.id);
+  assert.equal(ctx.canEat(other, piece, 1000 + 100), false, 'a rival cannot take it yet');
+  assert.equal(ctx.canEat(v, piece, 1000 + 100), true, 'the owner can');
+  assert.equal(ctx.canEat(other, piece, 1000 + CFG2.RECLAIM_MS), true, 'after the window it is a normal snack');
 });
 
 test('the numeral left after a bump is always canonical, for every value', () => {

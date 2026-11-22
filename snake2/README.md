@@ -17,7 +17,7 @@ npx serve .            # or: python3 -m http.server 8000
 
 | | |
 |---|---|
-| Aim | Push the stick in the lower-left corner in any direction. Or tap the board: Felix aims toward the tap, measured from the middle of the screen. Or swipe. Or hold arrow keys / WASD (two keys together aim diagonally). Felix turns toward the aim a little each step. |
+| Aim | Push the stick in the lower-left corner in any direction. Or tap the board: Felix aims toward the tap, measured from the middle of the screen. Or swipe. Or hold arrow keys / WASD (two keys together aim diagonally). Felix turns at once to the direction you aim, with no easing. |
 | Pause | P or Esc, or the II button. Leaving the tab also pauses. |
 | Goal | None. FreePlay has no timer and no grade: keep going as long as you like, and the run ends only in a crash. |
 | Crash | Into the stone border, or head-on into a snake that is your size or bigger, and you break apart in a small explosion, then fade to the game-over screen. A head-on with a smaller snake kills the smaller one. |
@@ -64,7 +64,7 @@ The suites cover the numeral maths (1–2021 round trips, the length table, no z
 
 | To change | Edit |
 |---|---|
-| Speed, turn rate, head and body size, symbol spacing, neck, snack reach, board size, rival limits, respawn time | `js/config.js` → `CFG2` |
+| Speed, head and body size, symbol spacing, neck, snack reach, board size, rival limits, respawn time | `js/config.js` → `CFG2` |
 | Snack odds | `js/config.js` → `SNACK_SETS` |
 | Symbol colours | `js/config.js` → `SYMBOL_COLOURS` |
 | How numerals grow and collapse | `js/snake.js` → `setValue()`, `growBody()` |

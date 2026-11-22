@@ -99,7 +99,7 @@ function addSnack(G, value) {
   return snack;
 }
 
-// Aim the player's head at an angle, in radians. It turns there at TURN_RATE.
+// Aim the player's head at an angle, in radians. The head faces it at the next step.
 function setPlayerAim(G, angle) {
   if (!G || G.state !== 'playing' || !G.player.alive) return false;
   G.player.target = angle;
@@ -158,8 +158,9 @@ function respawnBot(G, bot) {
 }
 
 // A bump: the victim's body is cut at the contact point. Its numeral keeps the symbols before
-// the contact; the rest become coins where they lay. Returns true if anything was cut.
-function bumpBody(G, victim, arc) {
+// the contact; the rest become coins where they lay, owned by the victim for RECLAIM_MS.
+// Returns true if anything was cut.
+function bumpBody(G, victim, arc, now) {
   const tokens = numeralTokens(victim.value);
   const n = tokens.length;
   let keep = 1;
@@ -168,12 +169,20 @@ function bumpBody(G, victim, arc) {
   for (let k = keep; k < n; k++) {
     if (G.snacks.length >= CFG2.MAX_SNACKS) break;
     const p = pointAtArc(victim.trail, k * CFG2.SYMBOL_STEP);
-    G.snacks.push({ x: p.x, y: p.y, value: tokenValue(tokens[k].text) });
+    G.snacks.push({ x: p.x, y: p.y, value: tokenValue(tokens[k].text), owner: victim.id, born: now });
   }
   const prefix = tokens.slice(0, keep).map(t => t.text).join('');
   setValue(victim, fromRoman(prefix));
   victim.symPts = symbolPoints(victim);
   return true;
+}
+
+// Can snake s eat snack sn at time `now`? Its own cut pieces are its own for RECLAIM_MS.
+// After that, or for anyone else's pieces, the usual size rule applies.
+function canEat(s, sn, now) {
+  if (sn.owner === s.id) return true;
+  if (sn.owner && now - sn.born < CFG2.RECLAIM_MS) return false;
+  return sn.value >= minEatable(s.value);
 }
 
 // Advance the game by one step. Returns a list of events for the UI.
@@ -182,6 +191,7 @@ function stepGame(G, now) {
   const events = [];
   if (G.state !== 'playing') return events;
   G.tickCount += 1;
+  G.now = now;
 
   // 1. Aim. Bots choose; everyone turns toward their target, then moves.
   for (const bot of G.snakes) {
@@ -194,7 +204,7 @@ function stepGame(G, now) {
   const { dead, bumps } = resolveTick(G.snakes);
   for (const b of bumps) {
     if (!b.victim.alive || !b.bumper.alive) continue;
-    if (bumpBody(G, b.victim, b.arc)) {
+    if (bumpBody(G, b.victim, b.arc, now)) {
       events.push({ type: 'bump', bumper: b.bumper.name, victim: b.victim.name, isPlayer: b.bumper.isPlayer });
     }
   }
@@ -219,8 +229,7 @@ function stepGame(G, now) {
   // 3. Heads that touch a snack eat it and grow.
   for (const s of G.snakes) {
     if (!s.alive) continue;
-    const minValue = minEatable(s.value);
-    const idx = G.snacks.findIndex(sn => sn.value >= minValue && Math.hypot(sn.x - s.x, sn.y - s.y) < CFG2.EAT_R);
+    const idx = G.snacks.findIndex(sn => canEat(s, sn, now) && Math.hypot(sn.x - s.x, sn.y - s.y) < CFG2.EAT_R);
     if (idx < 0) continue;
     const eaten = G.snacks.splice(idx, 1)[0];
     const collapse = growBy(G, s, eaten.value);

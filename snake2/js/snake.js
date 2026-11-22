@@ -59,11 +59,9 @@ function setValue(s, newValue) {
   return null;
 }
 
-// Turn toward the target heading, by at most TURN_RATE.
+// Face the target heading at once. Turns are immediate, like classic snake: no easing.
 function turnToward(s) {
-  const d = angleDiff(s.angle, s.target);
-  const step = Math.max(-CFG2.TURN_RATE, Math.min(CFG2.TURN_RATE, d));
-  s.angle = wrapAngle(s.angle + step);
+  s.angle = s.target;
 }
 
 // Grow the body toward its target, a little each step.

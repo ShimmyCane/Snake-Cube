@@ -39,14 +39,14 @@ test('the player moves smoothly: one SPEED step along its heading per step', () 
   assert.ok(Math.abs(G.player.y - y0) < 1e-9);
 });
 
-test('aiming turns the head there, but only at TURN_RATE a step', () => {
+test('aiming turns the head at once: the next step moves that way', () => {
   const G = createGame({ seed: 2, bots: 1 });
   G.snacks = [];
   setPlayerAim(G, Math.PI / 2);     // straight down the screen
+  const y0 = G.player.y;
   stepGame(G, 0);
-  assert.ok(Math.abs(G.player.angle - CFG2.TURN_RATE) < 1e-9);
-  for (let i = 0; i < 20; i++) stepGame(G, 0);
-  assert.ok(Math.abs(G.player.angle - Math.PI / 2) < 1e-9);
+  assert.equal(G.player.angle, Math.PI / 2);
+  assert.ok(Math.abs(G.player.y - (y0 + CFG2.SPEED)) < 1e-9, 'one full step down');
 });
 
 test('eating a I snack grows the body toward II', () => {
@@ -102,8 +102,9 @@ test('a crashed bot breaks apart: its body symbols become coins of the same valu
   bot.trail = [{ x: 1.6, y: 30 }, { x: 2.6, y: 30 }, { x: 3.6, y: 30 }];
   G.snacks = [];
   G.snackTarget = 0;                    // no restocking, so only the pieces are on the field
-  stepGame(G, 0);
-  assert.equal(bot.alive, false);
+  // Crash it directly: a bot now turns at once, so it would simply turn away from the wall.
+  bot.alive = false;
+  ctx.shatter(G, bot, 0);
   const pieces = G.snacks.filter(s => s.piece);
   assert.ok(pieces.length >= 5, `${pieces.length} pieces`);
   for (const p of pieces) {

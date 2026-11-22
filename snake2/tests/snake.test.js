@@ -49,13 +49,14 @@ test('the body settles to the numeral: bodyLen reaches the target and stays ther
   assert.equal(s.targetLen, romanLength(21) - 1 === 0 ? 0 : (romanLength(21) - 1) * CFG2.SYMBOL_STEP);
 });
 
-test('a head turns at TURN_RATE at most, toward its target', () => {
+test('a head faces its target at once, with no easing', () => {
   const s = make();
   s.target = 1.0;
   turnToward(s);
-  assert.ok(Math.abs(s.angle - CFG2.TURN_RATE) < 1e-9, 'one step turns by TURN_RATE');
-  for (let i = 0; i < 20; i++) turnToward(s);
-  assert.ok(Math.abs(s.angle - 1.0) < 1e-9, 'it gets there in time');
+  assert.equal(s.angle, 1.0);
+  s.target = -2.5;
+  turnToward(s);
+  assert.equal(s.angle, -2.5);
 });
 
 test('a step moves the head SPEED along its heading and keeps the trail trimmed', () => {

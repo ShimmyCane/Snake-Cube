@@ -99,7 +99,7 @@ function addSnack(G, value) {
   return snack;
 }
 
-// Aim the player's head at an angle, in radians. It turns there at TURN_RATE.
+// Aim the player's head at an angle, in radians. The head faces it at the next step.
 function setPlayerAim(G, angle) {
   if (!G || G.state !== 'playing' || !G.player.alive) return false;
   G.player.target = angle;

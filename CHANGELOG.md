@@ -6,6 +6,14 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Snake II: FreePlay
+
+- **One mode:** Snake II now has only FreePlay. Timed (3:00) and Endless are gone, and so are the MMXXI win, the best-score lists and the win screen. There is no timer and no grade. A run ends only in a crash.
+- **Corner stick:** the W / A / S / D pad is replaced by a stick in the lower-left corner. Push it and Felix turns toward the bigger axis.
+- **Tap to steer:** tap the board and Felix turns toward the tap, measured from the middle of the screen. Swipes and the arrow keys and WASD still work.
+- **Largest numeral:** the value stops at MMMCMXCIX (3999), the largest numeral. Reaching it is not a win.
+- **Old scores:** best scores saved by earlier builds stay in the browser under `snake2.best.*`, unread.
+
 ## Unreleased — Open saved maps
 
 - **Open SAVED (2.0 and 3.0):** the 📂 OPEN SAVED button lists maps saved on this device and family favourites. Pick one to edit it again. Saving then updates the same map rather than making a copy.

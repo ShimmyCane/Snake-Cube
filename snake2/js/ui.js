@@ -1,12 +1,10 @@
 // ════════════════════════════════════════════════════════════════════
-//  UI — screens, HUD, settings, countdown, best scores. DOM only.
+//  UI — screens, HUD, settings, countdown. DOM only. FreePlay: nothing is graded or saved.
 //  Reads game state; the game itself lives in game.js.
 // ════════════════════════════════════════════════════════════════════
 
 const SETTINGS_KEY = 'snake2.settings';
-const BEST_KEYS = { timed: 'snake2.best.timed', endless: 'snake2.best.endless' };
 const SETTINGS_DEFAULT = { showNumbers: false, snackSet: 'classic', music: true, hint: true, bots: CFG2.BOTS };
-const BEST_LIMIT = 5;
 
 const $ = id => document.getElementById(id);
 
@@ -23,33 +21,6 @@ function saveSettings(s) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* ignore */ }
 }
 
-function loadBest(mode) {
-  try { return JSON.parse(localStorage.getItem(BEST_KEYS[mode]) || '[]'); } catch (e) { return []; }
-}
-
-// Timed: higher number is better. Endless: wins first, then the quickest win;
-// a run that did not win ranks by its number.
-function rankBest(mode, list) {
-  const cmp = mode === 'timed'
-    ? (a, b) => b.value - a.value
-    : (a, b) => (b.won - a.won) || (a.won ? a.timeMs - b.timeMs : b.value - a.value);
-  return list.sort(cmp).slice(0, BEST_LIMIT);
-}
-
-function saveBest(mode, score) {
-  const list = rankBest(mode, loadBest(mode).concat([Object.assign({ date: Date.now() }, score)]));
-  try { localStorage.setItem(BEST_KEYS[mode], JSON.stringify(list)); } catch (e) { /* ignore */ }
-  return list;
-}
-
-// Time in Roman numerals, minutes then seconds: 2:59 is II:LIX. Romans had no zero,
-// so zero is written N, for nulla, as medieval scribes did: 3:00 is III:N.
-function formatClock(ms) {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  const part = n => (n > 0 ? toRoman(n) : 'N');
-  return part(Math.floor(s / 60)) + ':' + part(s % 60);
-}
-
 function clampBots(n) {
   const v = Number.isFinite(n) ? Math.round(n) : CFG2.BOTS;   // 0 is a real value, not 'missing'
   return Math.max(CFG2.BOTS_MIN, Math.min(CFG2.BOTS_MAX, v));
@@ -61,29 +32,12 @@ function numeralText(value, showNumbers) {
 
 // ── Screens ──
 const SCREENS = ['s-menu', 's-settings', 's-count', 's-pause', 's-over'];
-const PLAY_ELEMENTS = ['hud', 'board', 'minimap', 'dpad'];
+const PLAY_ELEMENTS = ['hud', 'board', 'minimap', 'stick'];
 
 function showScreen(name) {
   for (const id of SCREENS) $(id).classList.toggle('hidden', id !== name);
   const playing = name === null;
   for (const id of PLAY_ELEMENTS) $(id).classList.toggle('hidden', !playing);
-}
-
-function renderBestList(mode) {
-  const list = rankBest(mode, loadBest(mode));
-  const box = $('best-' + mode);
-  if (!box) return;
-  box.innerHTML = '';
-  if (!list.length) {
-    box.textContent = 'No runs yet';
-    return;
-  }
-  for (const row of list) {
-    const div = document.createElement('div');
-    const extra = mode === 'endless' && row.won ? ' · won in ' + formatClock(row.timeMs) : '';
-    div.textContent = toRoman(row.value) + extra;
-    box.appendChild(div);
-  }
 }
 
 // ── Countdown: III · II · I · IRE! ──
@@ -107,9 +61,6 @@ function updateHud(G, settings) {
   const arabic = $('v-arabic');
   arabic.textContent = settings.showNumbers ? String(G.player.value) : '';
   arabic.classList.toggle('hidden', !settings.showNumbers);
-  $('v-timer').textContent = G.mode === 'timed' ? formatClock(G.timeLeftMs) : formatClock(G.elapsedMs);
-  $('v-mode').textContent = G.mode === 'timed' ? 'TIMED' : 'ENDLESS';
-  $('v-best').textContent = toRoman(G.best);
 }
 
 let flashTimer = null;
@@ -121,21 +72,10 @@ function flash(text) {
   flashTimer = setTimeout(() => el.classList.add('hidden'), 1200);
 }
 
-// ── Game-over / win ──
-function showEnd(G, list) {
-  const won = G.result === 'won';
-  const titles = { won: 'MMXXI — FELIX!', crash: 'CRASH!', time: "TIME'S UP" };
-  $('over-title').textContent = titles[G.result] || 'GAME OVER';
-  $('over-score').textContent = toRoman(G.best);
-  $('over-detail').textContent = won && G.mode === 'endless' ? 'Won in ' + formatClock(G.elapsedMs) : '';
-  const box = $('over-best');
-  box.innerHTML = '';
-  for (const row of list.slice(0, 3)) {
-    const div = document.createElement('div');
-    div.textContent = toRoman(row.value);
-    box.appendChild(div);
-  }
-  $('over-wreath').classList.toggle('hidden', !won);
+// ── Game over. FreePlay has no grade: it shows the numeral you reached, and nothing is saved. ──
+function showEnd(G) {
+  $('over-title').textContent = 'CRASH!';
+  $('over-score').textContent = toRoman(G.player.value);
   showScreen('s-over');
   // Fade in: the board breaks apart first, then the end screen fades over it
   const el = $('s-over');

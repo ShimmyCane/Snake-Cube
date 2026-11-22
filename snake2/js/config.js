@@ -43,11 +43,12 @@ const CFG2 = {
   RECLAIM_MS: 8000,            // pieces cut from a bumped snake are its own for this long
 };
 
-// Snack value odds. Values never scale up as the snake grows.
+// Snack sets. The snacks on the field scale with the player's size: most are about a tenth
+// of its leading symbol, and `spread` says how many neighbouring sizes also turn up.
 const SNACK_SETS = {
-  classic:  { label: 'Classic',  odds: { 1: 0.80, 5: 0.15, 10: 0.05 } },
-  extended: { label: 'Extended', odds: { 1: 0.60, 5: 0.20, 10: 0.12, 50: 0.06, 100: 0.02 } },
-  imperial: { label: 'Imperial', odds: { 1: 0.50, 5: 0.20, 10: 0.15, 50: 0.08, 100: 0.05, 500: 0.015, 1000: 0.005 } },
+  classic:  { label: 'Classic',  spread: 1 },
+  extended: { label: 'Extended', spread: 2 },
+  imperial: { label: 'Imperial', spread: 3 },
 };
 
 // Colour for each numeral symbol. Used by the body tiles and snack coins.

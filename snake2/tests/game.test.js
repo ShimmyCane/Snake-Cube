@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { load, plain } = require('./load');
 
 const ctx = load();
-const { createGame, stepGame, setPlayerAim, romanLength, bodyLenFor, setValue, minEatable, numeralTokens, fromRoman, toRoman, CFG2, TAU } = ctx;
+const { createGame, stepGame, setPlayerAim, romanLength, bodyLenFor, setValue, numeralTokens, fromRoman, toRoman, CFG2, TAU } = ctx;
 
 const invariant = s => Math.abs(s.targetLen - bodyLenFor(s.value)) < 1e-9 && s.bodyLen <= s.targetLen + 1e-9;
 
@@ -175,27 +175,33 @@ test('random play for many steps never breaks the body invariant or throws', () 
   }
 });
 
-test('minEatable: a snake eats snacks from a tenth of its size up, and at least I', () => {
-  assert.equal(minEatable(1), 1);
-  assert.equal(minEatable(9), 1);
-  assert.equal(minEatable(10), 1);
-  assert.equal(minEatable(100), 5, 'a C eats V and up');
-  assert.equal(minEatable(500), 5);
-  assert.equal(minEatable(1000), 50, 'an M eats L and up');
+test('the snacks scale with the player: a D mostly finds L, a C mostly finds X, and nothing above the leading symbol', () => {
+  const count = value => {
+    const G = createGame({ seed: 21, bots: 1 });
+    growPlayer(G, value);
+    const tally = {};
+    for (let i = 0; i < 3000; i++) {
+      const v = ctx.sampleSnackValue(G);
+      tally[v] = (tally[v] || 0) + 1;
+    }
+    return tally;
+  };
+  const d = count(500);
+  assert.ok(d[50] > d[10] && d[50] > d[100], 'L is the most common for a D, with X and C beside it');
+  assert.ok(!d[1000], 'no M snacks for a D');
+  const c = count(100);
+  assert.ok(c[10] > c[5] && c[10] > c[50], 'X is the most common for a C, with V and L beside it');
+  assert.ok(!c[100], 'no C snacks for a C');
+  const i = count(1);
+  assert.ok(i[1] > 0 && !i[5] && !i[10], 'a I only finds I');
 });
 
-test('a C does not eat an I, but does eat a V', () => {
+test('a C eats an I snack: any snake eats any snack', () => {
   const G = createGame({ seed: 13, bots: 1 });
   growPlayer(G, 100);
   snackAhead(G, 1);
   stepGame(G, 0);
-  assert.equal(G.player.value, 100, 'the I is passed over');
-  assert.ok(G.snacks.some(s => s.value === 1), 'the I stays on the field');
-
-  growPlayer(G, 100);
-  snackAhead(G, 5);
-  stepGame(G, 0);
-  assert.equal(G.player.value, 105, 'the V is eaten');
+  assert.equal(G.player.value, 101);
 });
 
 test('a bump cuts the victim body at the contact: the rest falls away as coins', () => {

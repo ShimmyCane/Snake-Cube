@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════
 //  BOTS — choose where to turn. Pure, no DOM.
 //  Each step a bot looks at directions it could turn to, measures how far it can go
-//  clear in each, and leans toward the nearest snack. Bots never chase the player.
+//  clear in each, and leans toward the nearest snack it can eat. Bots never chase the player.
 // ════════════════════════════════════════════════════════════════════
 
 const BOT_HEADINGS = 24;           // candidate headings, evenly spaced
@@ -15,7 +15,7 @@ function clearance(x, y, angle, snakes, self) {
   const dx = Math.cos(angle), dy = Math.sin(angle);
   for (let t = BOT_PROBE; t <= BOT_LOOK; t += BOT_PROBE) {
     const px = x + dx * t, py = y + dy * t;
-    if (!inPlayArea(px, py, CFG2.HEAD_R + 0.2) || bodyHit(px, py, snakes, self, 0.2)) return t - BOT_PROBE;
+    if (!inPlayArea(px, py, CFG2.HEAD_R + 0.2) || bodyContact(px, py, snakes, self, 0.2)) return t - BOT_PROBE;
   }
   return BOT_LOOK;
 }
@@ -23,7 +23,9 @@ function clearance(x, y, angle, snakes, self) {
 // The heading a bot should aim for this step.
 function botChooseAim(bot, G) {
   let desired = null, nearest = BOT_SNACK_RANGE;
+  const minValue = minEatable(bot.value);
   for (const sn of G.snacks) {
+    if (sn.value < minValue) continue;
     const d = Math.hypot(sn.x - bot.x, sn.y - bot.y);
     if (d < nearest) { nearest = d; desired = Math.atan2(sn.y - bot.y, sn.x - bot.x); }
   }

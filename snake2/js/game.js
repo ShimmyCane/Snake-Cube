@@ -157,8 +157,27 @@ function respawnBot(G, bot) {
   return false;
 }
 
+// A bump: the victim's body is cut at the contact point. Its numeral keeps the symbols before
+// the contact; the rest become coins where they lay. Returns true if anything was cut.
+function bumpBody(G, victim, arc) {
+  const tokens = numeralTokens(victim.value);
+  const n = tokens.length;
+  let keep = 1;
+  for (let k = 1; k < n; k++) if (k * CFG2.SYMBOL_STEP < arc) keep = k + 1;
+  if (keep >= n) return false;
+  for (let k = keep; k < n; k++) {
+    if (G.snacks.length >= CFG2.MAX_SNACKS) break;
+    const p = pointAtArc(victim.trail, k * CFG2.SYMBOL_STEP);
+    G.snacks.push({ x: p.x, y: p.y, value: tokenValue(tokens[k].text) });
+  }
+  const prefix = tokens.slice(0, keep).map(t => t.text).join('');
+  setValue(victim, fromRoman(prefix));
+  victim.symPts = symbolPoints(victim);
+  return true;
+}
+
 // Advance the game by one step. Returns a list of events for the UI.
-// Events: { type: 'eat' | 'collapse' | 'crash' | 'botRespawn' | 'over', ... }
+// Events: { type: 'eat' | 'collapse' | 'crash' | 'bump' | 'botRespawn' | 'over', ... }
 function stepGame(G, now) {
   const events = [];
   if (G.state !== 'playing') return events;
@@ -171,8 +190,14 @@ function stepGame(G, now) {
   for (const s of G.snakes) if (s.alive) turnToward(s);
   for (const s of G.snakes) if (s.alive) advanceSnake(s);
 
-  // 2. Crashes, decided on the new positions.
-  const { dead } = resolveTick(G.snakes);
+  // 2. Crashes and bumps, decided on the new positions.
+  const { dead, bumps } = resolveTick(G.snakes);
+  for (const b of bumps) {
+    if (!b.victim.alive || !b.bumper.alive) continue;
+    if (bumpBody(G, b.victim, b.arc)) {
+      events.push({ type: 'bump', bumper: b.bumper.name, victim: b.victim.name, isPlayer: b.bumper.isPlayer });
+    }
+  }
   for (const d of dead) {
     const s = d.snake;
     s.alive = false;
@@ -194,7 +219,8 @@ function stepGame(G, now) {
   // 3. Heads that touch a snack eat it and grow.
   for (const s of G.snakes) {
     if (!s.alive) continue;
-    const idx = G.snacks.findIndex(sn => Math.hypot(sn.x - s.x, sn.y - s.y) < CFG2.EAT_R);
+    const minValue = minEatable(s.value);
+    const idx = G.snacks.findIndex(sn => sn.value >= minValue && Math.hypot(sn.x - s.x, sn.y - s.y) < CFG2.EAT_R);
     if (idx < 0) continue;
     const eaten = G.snacks.splice(idx, 1)[0];
     const collapse = growBy(G, s, eaten.value);

@@ -76,3 +76,23 @@ function trailSegments(trail, bodyLen, skipArc) {
   }
   return out;
 }
+
+// The closest point on the body (the trail, up to bodyLen) to (x, y):
+// { dist, arc }, where arc is how far along the body from the head that point lies.
+function closestOnBody(trail, bodyLen, x, y) {
+  let best = { dist: Infinity, arc: 0 };
+  let travelled = 0;
+  for (let i = 0; i + 1 < trail.length; i++) {
+    if (travelled >= bodyLen) break;
+    const a = trail[i], b = trail[i + 1];
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const len = Math.hypot(vx, vy);
+    const len2 = len * len;
+    let t = len2 > 0 ? ((x - a.x) * vx + (y - a.y) * vy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(x - (a.x + vx * t), y - (a.y + vy * t));
+    if (d < best.dist) best = { dist: d, arc: travelled + t * len };
+    travelled += len;
+  }
+  return best;
+}

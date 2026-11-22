@@ -62,6 +62,7 @@ function startRound() {
 function onEvents(events) {
   for (const e of events) {
     if (e.type === 'crash' && e.bot) flash(e.bot + ' crashed');
+    if (e.type === 'bump' && e.isPlayer) flash('Bumped ' + e.victim);
     if (e.type === 'botRespawn') { /* quiet: bots come back on their own */ }
   }
 }

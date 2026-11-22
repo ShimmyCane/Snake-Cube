@@ -20,8 +20,10 @@ npx serve .            # or: python3 -m http.server 8000
 | Aim | Push the stick in the lower-left corner in any direction. Or tap the board: Felix aims toward the tap, measured from the middle of the screen. Or swipe. Or hold arrow keys / WASD (two keys together aim diagonally). Felix turns toward the aim a little each step. |
 | Pause | P or Esc, or the II button. Leaving the tab also pauses. |
 | Goal | None. FreePlay has no timer and no grade: keep going as long as you like, and the run ends only in a crash. |
-| Crash | Into the stone border, your own body (past your neck), or another snake, and you break apart in a small explosion, then fade to the game-over screen. Head-on crashes count too. |
-| Rivals | Three by default, 1 to 10 in settings. You can't eat them. Any snake that crashes breaks apart into coins worth its symbols. A bot comes back after 3 s. |
+| Crash | Into the stone border, or head-on into a snake that is your size or bigger, and you break apart in a small explosion, then fade to the game-over screen. A head-on with a smaller snake kills the smaller one. |
+| Bump | Your head touching another snake's body cuts that body at the contact. The pieces past the cut fall away as coins, and you survive. Your own body never hurts you. |
+| Eating | You eat snacks from a tenth of your size up, and at least I. A C eats V and up; an M eats L and up. |
+| Rivals | Three by default, 1 to 10 in settings. Bump them to take their pieces, or crash a smaller one into your head to eat it. Any snake that dies breaks apart into coins worth its symbols. A bot comes back after 3 s. |
 | Numbers | Numerals are Roman only. The largest one is MMMCMXCIX (3999). |
 
 ## Layout
@@ -56,7 +58,7 @@ cd snake2
 node --test tests/*.test.js
 ```
 
-The suites cover the numeral maths (1–2021 round trips, the length table, no zero), angles and trails, body growth and collapse (the body settles to the numeral), turning at a limited rate, every collision case (wall, body, self with the neck exempt, head-on), bot behaviour, and random play for thousands of steps.
+The suites cover the numeral maths (1–2021 round trips, the length table, no zero), angles and trails, body growth and collapse (the body settles to the numeral), turning at a limited rate, the collision rules (wall, head-on by size, bump, own body harmless), the snack threshold, bot behaviour, and random play for thousands of steps.
 
 ## Change things
 

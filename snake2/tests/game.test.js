@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { load, plain } = require('./load');
 
 const ctx = load();
-const { createGame, stepGame, setPlayerAim, romanLength, bodyLenFor, setValue, CFG2, TAU } = ctx;
+const { createGame, stepGame, setPlayerAim, romanLength, bodyLenFor, setValue, minEatable, numeralTokens, fromRoman, toRoman, CFG2, TAU } = ctx;
 
 const invariant = s => Math.abs(s.targetLen - bodyLenFor(s.value)) < 1e-9 && s.bodyLen <= s.targetLen + 1e-9;
 
@@ -81,14 +81,14 @@ test('hitting a wall ends the game in crash', () => {
 test('FreePlay has no goal: past MMXXI the snake keeps going, up to the largest numeral', () => {
   const G = createGame({ seed: 6, bots: 1 });
   growPlayer(G, 2020);
-  snackAhead(G, 10);
+  snackAhead(G, 50);
   stepGame(G, 0);
   assert.equal(G.state, 'playing', 'no win state');
-  assert.equal(G.player.value, 2030);
+  assert.equal(G.player.value, 2070);
   assert.ok(invariant(G.player));
 
   growPlayer(G, 3995);
-  snackAhead(G, 10);
+  snackAhead(G, 50);
   stepGame(G, 0);
   assert.equal(G.player.value, CFG2.MAX_VALUE, 'capped at the largest numeral');
 });
@@ -173,3 +173,74 @@ test('random play for many steps never breaks the body invariant or throws', () 
     }
   }
 });
+
+test('minEatable: a snake eats snacks from a tenth of its size up, and at least I', () => {
+  assert.equal(minEatable(1), 1);
+  assert.equal(minEatable(9), 1);
+  assert.equal(minEatable(10), 1);
+  assert.equal(minEatable(100), 5, 'a C eats V and up');
+  assert.equal(minEatable(500), 5);
+  assert.equal(minEatable(1000), 50, 'an M eats L and up');
+});
+
+test('a C does not eat an I, but does eat a V', () => {
+  const G = createGame({ seed: 13, bots: 1 });
+  growPlayer(G, 100);
+  snackAhead(G, 1);
+  stepGame(G, 0);
+  assert.equal(G.player.value, 100, 'the I is passed over');
+  assert.ok(G.snacks.some(s => s.value === 1), 'the I stays on the field');
+
+  growPlayer(G, 100);
+  snackAhead(G, 5);
+  stepGame(G, 0);
+  assert.equal(G.player.value, 105, 'the V is eaten');
+});
+
+test('a bump cuts the victim body at the contact: the rest falls away as coins', () => {
+  const G = createGame({ seed: 14, bots: 1 });
+  const v = G.snakes[1];
+  growVictim(G, v, 38);      // XXXVIII
+  G.snacks = [];
+  G.snackTarget = 0;
+  // Put the player's head onto the victim's body, two tiles back from its head.
+  const at = ctx.pointAtArc(v.trail, 2 * CFG2.SYMBOL_STEP);
+  G.player.x = at.x; G.player.y = at.y; G.player.angle = 0; G.player.target = 0;
+  G.player.trail = [{ x: at.x, y: at.y }];
+  G.player.value = 1; G.player.bodyLen = 0; G.player.targetLen = 0;
+  const events = stepGame(G, 0);
+  assert.equal(G.player.alive, true, 'the bumper survives');
+  assert.ok(events.some(e => e.type === 'bump' && e.victim === v.name));
+  assert.ok(v.alive);
+  assert.ok(v.value < 38, 'the victim lost symbols');
+  assert.equal(toRoman(v.value), numeralTokens(v.value).map(t => t.text).join(''));
+});
+
+test('the cut-off symbols become coins of their own values, and the victim keeps the symbols before the cut', () => {
+  const G = createGame({ seed: 15, bots: 1 });
+  const v = G.snakes[1];
+  growVictim(G, v, 38);      // XXXVIII: X X X V I I I
+  G.snacks = [];
+  G.snackTarget = 0;
+  ctx.bumpBody(G, v, 2 * CFG2.SYMBOL_STEP);
+  assert.equal(v.value, 20, 'XX remains');
+  assert.deepEqual(G.snacks.map(s => s.value), [10, 5, 1, 1, 1], 'the cut X V I I I become coins');
+});
+
+test('the numeral left after a bump is always canonical, for every value', () => {
+  for (let v = 1; v <= 3999; v++) {
+    const tokens = numeralTokens(v);
+    for (let keep = 1; keep <= tokens.length; keep++) {
+      const prefix = tokens.slice(0, keep).map(t => t.text).join('');
+      assert.equal(fromRoman(prefix) > 0, true, `${prefix} from ${v}`);
+    }
+  }
+});
+
+function growVictim(G, v, value) {
+  setValue(v, value);
+  v.bodyLen = v.targetLen;
+  v.trail = Array.from({ length: 40 }, (_, i) => ({ x: 20 - i * 0.5, y: 45 }));
+  v.x = v.trail[0].x; v.y = v.trail[0].y;
+  v.symPts = ctx.symbolPoints(v);
+}

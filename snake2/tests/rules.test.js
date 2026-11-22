@@ -25,13 +25,17 @@ test('a head in open space is safe', () => {
   assert.equal(resolveTick([s]).dead.length, 0);
 });
 
-test('a head that runs into another snake body crashes (body)', () => {
+test('a head that runs into another snake body bumps it and survives; the body is cut at the contact', () => {
   const a = snakeWith(10, 9.3, [{ x: 10, y: 9.3 }], 0);
   const b = snakeWith(12, 10, [{ x: 12, y: 10 }, { x: 11, y: 10 }, { x: 10, y: 10 }, { x: 9, y: 10 }], 3);
-  assert.equal(reasonOf(resolveTick([a, b]).dead, a), 'body');
+  const { dead, bumps } = resolveTick([a, b]);
+  assert.equal(reasonOf(dead, a), undefined, 'the bumper lives');
+  assert.equal(bumps.length, 1);
+  assert.equal(bumps[0].victim, b);
+  assert.ok(Math.abs(bumps[0].arc - 2) < 0.2, 'contact about two tiles back from the head');
 });
 
-test('two heads that touch both crash (headon)', () => {
+test('two heads that touch and are the same size both crash (headon)', () => {
   const a = snakeWith(10, 10, [{ x: 10, y: 10 }], 0);
   const b = snakeWith(10.5, 10, [{ x: 10.5, y: 10 }], 0);
   const { dead } = resolveTick([a, b]);
@@ -39,10 +43,21 @@ test('two heads that touch both crash (headon)', () => {
   assert.equal(reasonOf(dead, b), 'headon');
 });
 
-test('a head that loops back into its own body crashes (self)', () => {
+test('a smaller head that touches a bigger head dies; the bigger one lives', () => {
+  const small = snakeWith(10, 10, [{ x: 10, y: 10 }], 0);
+  const big = snakeWith(10.5, 10, [{ x: 10.5, y: 10 }], 0);
+  big.value = 5;
+  const { dead } = resolveTick([small, big]);
+  assert.equal(reasonOf(dead, small), 'headon');
+  assert.equal(reasonOf(dead, big), undefined);
+});
+
+test('a head looping over its own body is never hurt by it', () => {
   const trail = [{ x: 10, y: 10 }, { x: 11, y: 10 }, { x: 11, y: 11 }, { x: 10, y: 11 }, { x: 9.6, y: 10.4 }];
   const s = snakeWith(10, 10, trail, 4);
-  assert.equal(reasonOf(resolveTick([s]).dead, s), 'self');
+  const { dead, bumps } = resolveTick([s]);
+  assert.equal(dead.length, 0);
+  assert.equal(bumps.length, 0);
 });
 
 test('the neck is safe: the first tiles of your own body never crash you', () => {

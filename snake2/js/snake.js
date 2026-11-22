@@ -81,3 +81,10 @@ function advanceSnake(s) {
   trimTrail(s.trail, s.bodyLen + 2);
   s.symPts = symbolPoints(s);
 }
+
+// The smallest snack a snake of this value eats: 5 × 10^(digits − 3), and at least I.
+// I to IX eat everything; C (100) eats V and up; M (1000) eats L and up.
+function minEatable(value) {
+  const digits = String(value).length;
+  return Math.max(1, Math.round(5 * Math.pow(10, digits - 3)));
+}

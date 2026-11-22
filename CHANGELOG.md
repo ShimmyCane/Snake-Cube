@@ -6,6 +6,13 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Snake II: bumps, eating and size
+
+- **Bumps:** a head that touches another snake's body cuts that body at the contact. The pieces beyond the cut fall away as coins, and the bumper survives.
+- **Eating snakes:** a head-on with a smaller snake kills the smaller one; equal sizes both die.
+- **Own body is harmless:** a snake can loop and overlap its own body.
+- **Size-scaled snacks:** a snake eats snacks from a tenth of its size up, and at least I. A C eats V and up; an M eats L and up.
+
 ## Unreleased — Snake II: free movement
 
 - **No grid:** Felix moves smoothly in any direction, diagonals included. The floor grid is gone. Each step Felix turns toward its aim at a limited rate, so it curves rather than snapping.

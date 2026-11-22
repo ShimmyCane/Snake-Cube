@@ -81,14 +81,35 @@ function freePointNear(G, c, radius, minBody) {
 }
 
 // One snack value from the chosen odds.
+// Snack sizes, smallest to largest. Every snack is one of these.
+const SNACK_TIERS = [1, 5, 10, 50, 100, 500, 1000];
+
+// A snake's leading symbol's value, e.g. 500 for D, 1000 for M (MMXXI leads with M).
+function leadValue(value) {
+  return tokenValue(numeralTokens(value)[0].text);
+}
+
+// The new snacks follow the player's size. The centre is about a tenth of the leading symbol,
+// so a D (500) mostly finds L (50), and a C (100) mostly finds X (10). Sizes above the leading
+// symbol never appear. Neighbouring sizes turn up less often, out to the set's spread.
 function sampleSnackValue(G) {
-  const odds = SNACK_SETS[G.snackSet].odds;
-  let roll = G.rng();
-  for (const v of Object.keys(odds).map(Number)) {
-    roll -= odds[v];
-    if (roll < 0) return v;
+  const lead = leadValue(G.player.value);
+  const tiers = SNACK_TIERS.filter(t => t <= lead);
+  const want = Math.max(1, lead / 10);
+  let centre = 0;
+  for (let i = 0; i < tiers.length; i++) if (tiers[i] <= want) centre = i;
+  const spread = SNACK_SETS[G.snackSet].spread;
+  const options = [];
+  for (let i = Math.max(0, centre - spread); i <= Math.min(tiers.length - 1, centre + spread); i++) {
+    options.push({ value: tiers[i], weight: Math.max(1, 4 - Math.abs(i - centre)) });
   }
-  return Number(Object.keys(odds)[0]);
+  const total = options.reduce((sum, o) => sum + o.weight, 0);
+  let roll = G.rng() * total;
+  for (const o of options) {
+    roll -= o.weight;
+    if (roll < 0) return o.value;
+  }
+  return options[options.length - 1].value;
 }
 
 function addSnack(G, value) {
@@ -177,12 +198,12 @@ function bumpBody(G, victim, arc, now) {
   return true;
 }
 
-// Can snake s eat snack sn at time `now`? Its own cut pieces are its own for RECLAIM_MS.
-// After that, or for anyone else's pieces, the usual size rule applies.
+// Can snake s eat snack sn at time `now`? Any snake eats any snack, except that a bumped
+// snake's own cut pieces belong to it for RECLAIM_MS: only it can take them during that time.
 function canEat(s, sn, now) {
   if (sn.owner === s.id) return true;
   if (sn.owner && now - sn.born < CFG2.RECLAIM_MS) return false;
-  return sn.value >= minEatable(s.value);
+  return true;
 }
 
 // Advance the game by one step. Returns a list of events for the UI.

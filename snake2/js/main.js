@@ -62,6 +62,7 @@ function startRound() {
 function onEvents(events) {
   for (const e of events) {
     if (e.type === 'crash' && e.bot) flash(e.bot + ' crashed');
+    if (e.type === 'bump' && e.isPlayer) flash('Bumped ' + e.victim);
     if (e.type === 'botRespawn') { /* quiet: bots come back on their own */ }
   }
 }
@@ -140,7 +141,7 @@ function boot() {
   if (typeof MUS !== 'undefined' && !settings.music && !MUS.muted) MUS.toggle();
 
   installInput(canvas, $('stick'), {
-    onTurn: dir => { if (G) setPlayerTurn(G, dir); },
+    onAim: angle => setPlayerAim(G, angle),
     onPause: () => { if (G && G.state === 'playing') setPaused(!paused); },
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });

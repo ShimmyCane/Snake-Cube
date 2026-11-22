@@ -6,6 +6,21 @@ The git history here starts at a single "initialize" commit, so entries before v
 
 ---
 
+## Unreleased — Snake II: bumps, eating and size
+
+- **Bumps:** a head that touches another snake's body cuts that body at the contact. The pieces beyond the cut fall away as coins, and the bumper survives.
+- **Eating snakes:** a head-on with a smaller snake kills the smaller one; equal sizes both die.
+- **Own body is harmless:** a snake can loop and overlap its own body.
+- **Size-scaled snacks:** a snake eats snacks from a tenth of its size up, and at least I. A C eats V and up; an M eats L and up.
+
+## Unreleased — Snake II: free movement
+
+- **No grid:** Felix moves smoothly in any direction, diagonals included. The floor grid is gone. Each step Felix turns toward its aim at a limited rate, so it curves rather than snapping.
+- **Body follows the path:** the numeral's symbols sit one after another along the path Felix has travelled. Growing and collapsing change the body length smoothly.
+- **Collisions are distance-based:** a head crashes when it comes within reach of the stone border, another head, or another body. A snake's own first tiles (its neck) are safe.
+- **Aim by angle:** the corner stick, taps from the middle of the screen, swipes and the keys all aim by angle. Two keys together aim diagonally.
+- **Bots** pick the heading with the most clear space, pulled toward the nearest snack.
+
 ## Unreleased — Snake II: FreePlay
 
 - **One mode:** Snake II now has only FreePlay. Timed (3:00) and Endless are gone, and so are the MMXXI win, the best-score lists and the win screen. There is no timer and no grade. A run ends only in a crash.

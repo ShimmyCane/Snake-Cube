@@ -94,7 +94,7 @@
 <script>
   // Shown only if a script failed to load or a global is missing.
   window.addEventListener('DOMContentLoaded', function () {
-    var needed = ['CFG2', 'toRoman', 'createGame', 'stepGame', 'renderBoard', 'updateCamera', 'installInput', 'directionFromOffset', 'loadSettings', 'MUS'];
+    var needed = ['CFG2', 'toRoman', 'createGame', 'stepGame', 'renderBoard', 'updateCamera', 'installInput', 'angleFromOffset', 'loadSettings', 'MUS'];
     var missing = needed.filter(function (name) {
       try { return eval('typeof ' + name) === 'undefined'; } catch (e) { return true; }
     });
@@ -109,7 +109,8 @@
 
 <script src="js/config.js"></script>
 <script src="js/roman.js"></script>
-<script src="js/grid.js"></script>
+<script src="js/geom.js"></script>
+<script src="js/arena.js"></script>
 <script src="js/snake.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/bots.js"></script>

@@ -21,11 +21,11 @@ function viewCells(width, height, cellPx) {
 }
 
 // Smoothly move the camera so the player's head sits near the middle.
-// cam.x / cam.y are the top-left cell of the view, in board cells.
+// cam.x / cam.y are the board point at the top-left of the view, in tiles.
 function updateCamera(cam, G, view) {
-  const h = snakeHead(G.player);
-  const tx = h.c + 0.5 - view.w / 2;
-  const ty = h.r + 0.5 - view.h / 2;
+  const h = G.player;
+  const tx = h.x - view.w / 2;
+  const ty = h.y - view.h / 2;
   const clampAxis = (t, size, board) => {
     if (size >= board) return (board - size) / 2;   // whole board fits: centre it
     return Math.max(0, Math.min(board - size, t));

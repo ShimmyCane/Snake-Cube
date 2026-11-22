@@ -1,8 +1,8 @@
 # Snake II — Roman numeral snake
 
-A classic grid snake where your snake **is** a number. Its body is the number written in Roman numerals, one symbol per tile. Eat coins to count up. When the body would spell something Romans wouldn't write, it collapses: `III + I → IV`, and the tail shortens.
+A snake that is a number. Its body is the number written in Roman numerals, one symbol per step along the body. Eat coins to count up. When the body would spell something Romans wouldn't write, it collapses: `III + I → IV`, and the body shortens.
 
-The full design is in [`schematic_snake2.md`](schematic_snake2.md). This README covers running and testing it.
+Movement is smooth and free: no grid, any direction, including diagonals. The design history is in [`schematic_snake2.md`](schematic_snake2.md). This README covers running and testing it.
 
 ## Run it
 
@@ -17,11 +17,13 @@ npx serve .            # or: python3 -m http.server 8000
 
 | | |
 |---|---|
-| Move | Tap the board to turn toward the tap, measured from the middle of the screen. Swipe, or push the stick in the lower-left corner. Arrow keys and WASD work too. |
+| Aim | Push the stick in the lower-left corner in any direction. Or tap the board: Felix aims toward the tap, measured from the middle of the screen. Or swipe. Or hold arrow keys / WASD (two keys together aim diagonally). Felix turns toward the aim a little each step. |
 | Pause | P or Esc, or the II button. Leaving the tab also pauses. |
 | Goal | None. FreePlay has no timer and no grade: keep going as long as you like, and the run ends only in a crash. |
-| Crash | Into a wall, your own body, or another snake, and you break apart in a small explosion, then fade to the game-over screen. Head-on crashes count too. |
-| Rivals | Three by default, 1 to 10 in settings. You can't eat them. Any snake that crashes breaks apart into coins worth its symbols, thrown within 3 cells. A bot comes back after 3 s. |
+| Crash | Into the stone border, or head-on into a snake that is your size or bigger, and you break apart in a small explosion, then fade to the game-over screen. A head-on with a smaller snake kills the smaller one. |
+| Bump | Your head touching another snake's body cuts that body at the contact. The pieces past the cut fall away as coins, and you survive. Your own body never hurts you. |
+| Eating | You eat snacks from a tenth of your size up, and at least I. A C eats V and up; an M eats L and up. |
+| Rivals | Three by default, 1 to 10 in settings. Bump them to take their pieces, or crash a smaller one into your head to eat it. Any snake that dies breaks apart into coins worth its symbols. A bot comes back after 3 s. |
 | Numbers | Numerals are Roman only. The largest one is MMMCMXCIX (3999). |
 
 ## Layout
@@ -33,16 +35,17 @@ snake2/
   js/
     config.js           CFG2, SNACK_SETS, colours, names
     roman.js            toRoman, fromRoman, romanLength, popLabel   (pure)
-    grid.js             board, walls, cell keys, seeded random      (pure)
-    snake.js            snake model: value, body, grow and collapse (pure)
-    rules.js            who crashes each tick                       (pure)
-    bots.js             bot direction: BFS to coins, stay safe      (pure)
-    game.js             game state, one tick, snacks, clock         (pure)
-    camera.js           follow camera                               (browser)
-    render.js           canvas drawing                              (browser)
-    input.js            keys, taps, swipes, corner stick            (browser)
+    geom.js             angles, distances, trails                    (pure)
+    arena.js            stone border, random points, seeded random   (pure)
+    snake.js            snake model: body length, turning, moving    (pure)
+    rules.js            who crashes each step                        (pure)
+    bots.js             bot aim: clearance and snacks                (pure)
+    game.js             game state, one step, snacks, bots           (pure)
+    camera.js           follow camera                                (browser)
+    render.js           canvas drawing                               (browser)
+    input.js            keys, taps, swipes, corner stick             (browser)
     ui.js               screens, HUD, settings                       (browser)
-    main.js             boot and the frame loop                     (browser)
+    main.js             boot and the frame loop                      (browser)
   tests/                node:test suites for the pure modules
 ```
 
@@ -55,19 +58,19 @@ cd snake2
 node --test tests/*.test.js
 ```
 
-The suites cover the numeral maths (1–2021 round trips, the length table, no zero), snake growth and collapse (including the invariant `cells + pending = romanLength(value)` after every step), every collision case, bot behaviour, and random play for thousands of ticks.
+The suites cover the numeral maths (1–2021 round trips, the length table, no zero), angles and trails, body growth and collapse (the body settles to the numeral), turning at a limited rate, the collision rules (wall, head-on by size, bump, own body harmless), the snack threshold, bot behaviour, and random play for thousands of steps.
 
 ## Change things
 
 | To change | Edit |
 |---|---|
-| Speed, board size, cell size, numeral ceiling, stick sensitivity, rival limits, respawn time, crash radius | `js/config.js` → `CFG2` |
+| Speed, turn rate, head and body size, symbol spacing, neck, snack reach, board size, rival limits, respawn time | `js/config.js` → `CFG2` |
 | Snack odds | `js/config.js` → `SNACK_SETS` |
 | Symbol colours | `js/config.js` → `SYMBOL_COLOURS` |
-| How numerals collapse | `js/snake.js` → `setValue()` |
-| Who crashes | `js/rules.js` → `resolveTick()` |
-| Tap, swipe, stick, keys | `js/input.js` → `installInput()`, direction from `js/grid.js` → `directionFromOffset()` |
-| Bot behaviour | `js/bots.js` → `botChooseDir()` |
+| How numerals grow and collapse | `js/snake.js` → `setValue()`, `growBody()` |
+| Who crashes | `js/rules.js` → `resolveTick()`, `bodyHit()` |
+| Bot behaviour | `js/bots.js` → `botChooseAim()` |
+| Stick, taps, swipes, keys | `js/input.js` → `installInput()` |
 | Look | `js/render.js` and `css/snake2.css` |
 
 ## Notes

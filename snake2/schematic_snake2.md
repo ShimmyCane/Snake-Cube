@@ -3,6 +3,7 @@
 A classic 2-D grid snake where your snake **is** a number, written in Roman numerals.
 
 - **Status:** built (M0–M5). Code lives in `snake2/`; see `snake2/README.md` for how to run and test it.
+- **Update (free movement):** movement is smooth and not on a grid; the body follows the path Felix has travelled, and collisions are distance-based. Where sections 2 to 12 describe cells, tiles or steering by grid direction, that is the earlier design.
 - **Update (FreePlay):** Timed and Endless, the MMXXI win, best scores and the WASD pad were replaced by one ungraded FreePlay mode, a corner stick and tap-to-steer. Where the sections below describe modes, the goal, best scores or the pad, the README and CHANGELOG are the current behaviour.
 - **Folder:** `snake2/`, separate from Felix's Snake Cubes.
 - **Source of truth:** this file. It replaces the earlier `schematic.html` draft.

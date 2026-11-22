@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { load, plain } = require('./load');
 
 const ctx = load();
-const { createGame, stepGame, setPlayerTurn, advanceClock, romanLength, CFG2, addSnack } = ctx;
+const { createGame, stepGame, setPlayerTurn, romanLength, CFG2, addSnack } = ctx;
 
 const invariant = s => s.cells.length + s.pendingGrow === romanLength(s.value);
 
@@ -16,8 +16,8 @@ function snackAhead(G, value) {
 }
 
 test('createGame: player in the middle, 3 bots, field stocked, same seed gives the same field', () => {
-  const a = createGame({ seed: 42, mode: 'timed' });
-  const b = createGame({ seed: 42, mode: 'timed' });
+  const a = createGame({ seed: 42 });
+  const b = createGame({ seed: 42 });
   assert.equal(a.player.value, 1);
   assert.equal(a.snakes.length, 1 + CFG2.BOTS);
   assert.equal(a.snacks.length, CFG2.SNACKS_ON_FIELD);
@@ -25,7 +25,7 @@ test('createGame: player in the middle, 3 bots, field stocked, same seed gives t
 });
 
 test('the player moves one cell per tick', () => {
-  const G = createGame({ seed: 1, mode: 'endless' });
+  const G = createGame({ seed: 1 });
   const before = plain(G.player.cells[0]);
   // Clear the path so nothing is in front.
   G.snacks = G.snacks.filter(s => s.r !== before.r);
@@ -35,7 +35,7 @@ test('the player moves one cell per tick', () => {
 });
 
 test('eating a I snack grows the body to II', () => {
-  const G = createGame({ seed: 2, mode: 'endless' });
+  const G = createGame({ seed: 2 });
   snackAhead(G, 1);
   const events = stepGame(G, 0);
   assert.ok(events.some(e => e.type === 'eat'));
@@ -44,7 +44,7 @@ test('eating a I snack grows the body to II', () => {
 });
 
 test('III eating I collapses to IV: the body shrinks to a lone head and a collapse event fires', () => {
-  const G = createGame({ seed: 3, mode: 'endless' });
+  const G = createGame({ seed: 3 });
   G.player.value = 3;
   G.player.cells = [{ c: 25, r: 25 }, { c: 24, r: 25 }, { c: 23, r: 25 }];
   G.player.dir = { dc: 1, dr: 0 };
@@ -58,7 +58,7 @@ test('III eating I collapses to IV: the body shrinks to a lone head and a collap
 });
 
 test('hitting a wall ends the game in crash', () => {
-  const G = createGame({ seed: 4, mode: 'endless' });
+  const G = createGame({ seed: 4 });
   G.player.cells = [{ c: 1, r: 25 }];
   G.player.dir = { dc: -1, dr: 0 };
   const events = stepGame(G, 0);
@@ -67,21 +67,29 @@ test('hitting a wall ends the game in crash', () => {
   assert.ok(events.some(e => e.type === 'over'));
 });
 
-test('reaching 2021 wins, and the value is capped at the goal', () => {
-  const G = createGame({ seed: 5, mode: 'endless' });
+test('FreePlay has no goal: past MMXXI the snake keeps going, up to the largest numeral', () => {
+  const G = createGame({ seed: 5 });
   G.player.value = 2020;
   G.player.cells = Array.from({ length: romanLength(2020) }, (_, i) => ({ c: 25 - i, r: 25 }));
   G.player.pendingGrow = 0;
   G.player.dir = { dc: 1, dr: 0 };
   snackAhead(G, 10);
   stepGame(G, 0);
-  assert.equal(G.state, 'won');
-  assert.equal(G.result, 'won');
-  assert.equal(G.player.value, CFG2.GOAL);
+  assert.equal(G.state, 'playing', 'no win state');
+  assert.equal(G.player.value, 2030);
+  assert.ok(invariant(G.player));
+
+  G.player.value = 3995;
+  G.player.cells = Array.from({ length: romanLength(3995) }, (_, i) => ({ c: 25 - i, r: 25 }));
+  G.player.pendingGrow = 0;
+  snackAhead(G, 10);
+  stepGame(G, 0);
+  assert.equal(G.player.value, CFG2.MAX_VALUE, 'capped at the largest numeral');
+  assert.ok(invariant(G.player));
 });
 
 test('a crashed bot breaks apart: its body symbols become coins of the same value, nearby', () => {
-  const G = createGame({ seed: 6, mode: 'endless' });
+  const G = createGame({ seed: 6 });
   const bot = G.snakes[1];
   bot.value = 38;                                  // XXXVIII: seven symbols
   bot.cells = Array.from({ length: 7 }, (_, i) => ({ c: 1 + i, r: 10 }));
@@ -110,7 +118,7 @@ test('a crashed bot breaks apart: its body symbols become coins of the same valu
 });
 
 test('the player breaks apart too when they crash, then the game is over', () => {
-  const G = createGame({ seed: 12, mode: 'endless' });
+  const G = createGame({ seed: 12 });
   G.player.value = 6;                               // VI: two symbols
   G.player.cells = [{ c: 1, r: 25 }, { c: 2, r: 25 }];
   G.player.dir = { dc: -1, dr: 0 };
@@ -123,7 +131,7 @@ test('the player breaks apart too when they crash, then the game is over', () =>
 });
 
 test('a crash into a wall, your own body, or another snake all shatter the crasher', () => {
-  const G = createGame({ seed: 13, mode: 'endless' });
+  const G = createGame({ seed: 13 });
   const realChoose = ctx.botChooseDir;
   ctx.botChooseDir = () => ({ dc: -1, dr: 0 });
   try {
@@ -145,17 +153,17 @@ test('a crash into a wall, your own body, or another snake all shatter the crash
 
 test('the Rival snakes setting: 1 to 10 bots, clamped, all on their own start cell', () => {
   for (const [asked, expected] of [[0, 1], [1, 1], [3, 3], [10, 10], [99, 10]]) {
-    const G = createGame({ seed: 20, mode: 'endless', bots: asked });
+    const G = createGame({ seed: 20, bots: asked });
     assert.equal(G.snakes.length, 1 + expected, 'bots asked ' + asked);
   }
-  const G = createGame({ seed: 21, mode: 'endless', bots: 10 });
+  const G = createGame({ seed: 21, bots: 10 });
   const cells = new Set(G.snakes.map(s => s.cells[0].c + ',' + s.cells[0].r));
   assert.equal(cells.size, 11, 'no two snakes start on the same cell');
-  assert.ok(G.snackTarget > createGame({ seed: 21, mode: 'endless', bots: 3 }).snackTarget, 'more rivals, more snacks');
+  assert.ok(G.snackTarget > createGame({ seed: 21, bots: 3 }).snackTarget, 'more rivals, more snacks');
 });
 
 test('eating only restocks while the field is below target, so crash coins run out', () => {
-  const G = createGame({ seed: 22, mode: 'endless' });
+  const G = createGame({ seed: 22 });
   // Pile on extra coins, as after a crash
   for (let i = 0; i < 6; i++) addSnack(G, 1);
   const before = G.snacks.length;
@@ -165,20 +173,15 @@ test('eating only restocks while the field is below target, so crash coins run o
   assert.equal(G.snacks.length <= before, true, 'the field did not keep growing');
 });
 
-test('Timed mode ends at zero; Endless never does', () => {
-  const timed = createGame({ seed: 7, mode: 'timed' });
-  advanceClock(timed, CFG2.ROUND_MS);
-  assert.equal(timed.state, 'over');
-  assert.equal(timed.result, 'time');
-
-  const endless = createGame({ seed: 8, mode: 'endless' });
-  advanceClock(endless, CFG2.ROUND_MS * 2);
-  assert.equal(endless.state, 'playing');
-  assert.equal(endless.elapsedMs, CFG2.ROUND_MS * 2);
+test('FreePlay has no clock: nothing ends a round but a crash', () => {
+  const G = createGame({ seed: 8 });
+  for (let t = 1; t <= 200; t++) stepGame(G, t * CFG2.TICK_MS);
+  assert.ok(G.state === 'playing' || G.state === 'over', 'the only other state is over');
+  assert.ok(G.state === 'playing' || G.result === 'crash', 'over means a crash');
 });
 
 test('setPlayerTurn queues a turn only while playing', () => {
-  const G = createGame({ seed: 9, mode: 'endless' });
+  const G = createGame({ seed: 9 });
   assert.equal(setPlayerTurn(G, { dc: 0, dr: -1 }), true);
   G.state = 'over';
   assert.equal(setPlayerTurn(G, { dc: 0, dr: 1 }), false);
@@ -186,7 +189,7 @@ test('setPlayerTurn queues a turn only while playing', () => {
 
 test('random play for many ticks never breaks the invariant or throws', () => {
   for (let seed = 1; seed <= 6; seed++) {
-    const G = createGame({ seed, mode: 'endless' });
+    const G = createGame({ seed });
     let now = 0;
     for (let t = 0; t < 1500 && G.state === 'playing'; t++) {
       if (G.rng() < 0.25) {

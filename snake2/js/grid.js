@@ -10,6 +10,14 @@ const DIRS = [
   { dc: 1, dr: 0, name: 'right' },
 ];
 
+// The grid direction for a screen offset (dx, dy), by its bigger axis. Screen y grows downward,
+// like rows. Returns null for no offset. Used by the corner stick and by taps relative to the middle.
+function directionFromOffset(dx, dy) {
+  if (dx === 0 && dy === 0) return null;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? DIRS[3] : DIRS[2];
+  return dy > 0 ? DIRS[1] : DIRS[0];
+}
+
 function isWall(c, r) {
   return c <= 0 || r <= 0 || c >= CFG2.COLS - 1 || r >= CFG2.ROWS - 1;
 }

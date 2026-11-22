@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
-//  GAME — state, one tick, snacks, bots, timer. Pure, no DOM.
-//  The UI calls createGame(), setPlayerTurn(), stepGame(), advanceClock().
+//  GAME — state, one tick, snacks, bots. Pure, no DOM. FreePlay: no clock, no goal.
+//  The UI calls createGame(), setPlayerTurn(), stepGame().
 // ════════════════════════════════════════════════════════════════════
 
 // Ten start spots around the board, each facing inward. The first three are the default bots.
@@ -30,20 +30,16 @@ function createGame(opts) {
   }
   const G = {
     state: 'playing',
-    mode: opts.mode === 'endless' ? 'endless' : 'timed',
     snackSet: SNACK_SETS[opts.snackSet] ? opts.snackSet : 'classic',
     seed,
     rng,
-    timeLeftMs: CFG2.ROUND_MS,   // Timed mode countdown
-    elapsedMs: 0,                // Endless mode clock (also used for the win time)
     snakes: [player, ...bots],
     player,
     snacks: [],                  // { c, r, value } + { piece, fromC, fromR, born } for a crashed snake's coins
     snackTarget: CFG2.SNACKS_ON_FIELD + CFG2.SNACKS_PER_EXTRA_BOT * Math.max(0, botCount - CFG2.BOTS),
     pops: [],                    // { c, r, text, at }
     bursts: [],                  // { c, r, at } little explosions where a snake crashed
-    best: CFG2.START_VALUE,
-    result: null,                // 'won' | 'crash' | 'time'
+    result: null,                // 'crash' when the player's head hits something
     tickCount: 0,
   };
   while (G.snacks.length < G.snackTarget) addSnack(G);
@@ -91,11 +87,10 @@ function setPlayerTurn(G, dir) {
   return queueTurn(G.player, dir);
 }
 
-// Add value to a snake, capped at the goal. Returns { won, collapse }.
+// Add value to a snake, capped at the largest numeral. Returns the collapse, if any.
 function growBy(G, s, amount) {
-  const next = Math.min(s.value + amount, CFG2.GOAL);
-  const collapse = setValue(s, next);
-  return { won: s.isPlayer && next >= CFG2.GOAL, collapse };
+  const next = Math.min(s.value + amount, CFG2.MAX_VALUE);
+  return setValue(s, next);
 }
 
 function bodyPops(G, s, collapse, eaten, now) {
@@ -151,7 +146,7 @@ function respawnBot(G, bot) {
 }
 
 // Advance the game by one tick. Returns a list of events for the UI.
-// Events: { type: 'eat' | 'collapse' | 'crash' | 'botRespawn' | 'won' | 'over', ... }
+// Events: { type: 'eat' | 'collapse' | 'crash' | 'botRespawn' | 'over', ... }
 function stepGame(G, now) {
   const events = [];
   if (G.state !== 'playing') return events;
@@ -193,18 +188,11 @@ function stepGame(G, now) {
     const eaten = idx >= 0 ? G.snacks.splice(idx, 1)[0] : null;
     moveSnake(s, nh, !!eaten);
     if (eaten) {
-      const { won, collapse } = growBy(G, s, eaten.value);
+      const collapse = growBy(G, s, eaten.value);
       bodyPops(G, s, collapse, eaten.value, now);
       if (s.isPlayer) {
-        G.best = Math.max(G.best, s.value);
         events.push({ type: 'eat', value: eaten.value });
         if (collapse) events.push({ type: 'collapse', from: collapse.from, to: collapse.to });
-      }
-      if (won) {
-        G.result = 'won';
-        G.state = 'won';
-        events.push({ type: 'won' });
-        return events;
       }
       if (G.snacks.length < G.snackTarget) addSnack(G);
     }
@@ -223,22 +211,4 @@ function stepGame(G, now) {
   G.pops = G.pops.filter(p => now - p.at < 900);
   G.bursts = G.bursts.filter(b => now - b.at < CFG2.BURST_MS);
   return events;
-}
-
-// Clock: the Timed countdown, or the Endless count-up. Ends the round in Timed mode.
-function advanceClock(G, dtMs) {
-  if (G.state !== 'playing') return;
-  G.elapsedMs += dtMs;
-  if (G.mode === 'timed') {
-    G.timeLeftMs = Math.max(0, G.timeLeftMs - dtMs);
-    if (G.timeLeftMs === 0) {
-      G.result = 'time';
-      G.state = 'over';
-    }
-  }
-}
-
-// Score shown on the game-over screen and stored in best scores.
-function finalScore(G) {
-  return { value: G.best, timeMs: G.elapsedMs, won: G.result === 'won', mode: G.mode };
 }

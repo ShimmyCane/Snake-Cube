@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-//  MAIN — boot, the round, and the frame loop.
+//  MAIN — boot, the round, and the frame loop. FreePlay: no clock, no goal.
 //  Load order: see schematic_snake2.md section 8. Starts last.
 // ════════════════════════════════════════════════════════════════════
 
@@ -43,20 +43,19 @@ function sizeChanged() {
     || sized.dpr !== (window.devicePixelRatio || 1);
 }
 
-function startRound(mode) {
-  G = createGame({ mode, snackSet: settings.snackSet, bots: clampBots(settings.bots), seed: Date.now() });
+function startRound() {
+  G = createGame({ snackSet: settings.snackSet, bots: clampBots(settings.bots), seed: Date.now() });
   G.state = 'countdown';
   roundEnded = false;
   paused = false;
   acc = 0;
   cam = {};
-  $('v-mode').textContent = mode === 'timed' ? 'TIMED' : 'ENDLESS';
   showScreen(null);
   runCountdown(() => {
     if (!G) return;
     G.state = 'playing';
     lastFrame = performance.now();
-    if (settings.hint) flash('Swipe, or use the arrows');
+    if (settings.hint) flash('Tap or swipe the board, or push the corner stick');
   });
 }
 
@@ -70,20 +69,17 @@ function onEvents(events) {
 function endRound() {
   if (roundEnded || !G) return;
   roundEnded = true;
-  const list = saveBest(G.mode, finalScore(G));
-  showEnd(G, list);
+  showEnd(G);
 }
 
 function quitToMenu() {
   G = null;
   paused = false;
   showScreen('s-menu');
-  renderBestList('timed');
-  renderBestList('endless');
 }
 
 function setPaused(on) {
-  if (!G || G.state === 'over' || G.state === 'won' || G.state === 'countdown') return;
+  if (!G || G.state === 'over' || G.state === 'countdown') return;
   paused = on;
   $('s-pause').classList.toggle('hidden', !on);
   if (!on) lastFrame = performance.now();
@@ -97,19 +93,17 @@ function frame(now) {
 
   if (G.state === 'playing' && !paused) {
     acc += dt;
-    advanceClock(G, dt);
     while (acc >= CFG2.TICK_MS && G.state === 'playing') {
       acc -= CFG2.TICK_MS;
       onEvents(stepGame(G, now));
     }
   }
 
-  // After a crash or a win, hold a moment so the explosion and the thrown coins show,
+  // After a crash, hold a moment so the explosion and the thrown coins show,
   // then fade into the end screen.
-  if ((G.state === 'over' || G.state === 'won') && !roundEnded) {
+  if (G.state === 'over' && !roundEnded) {
     if (G.endAt == null) G.endAt = now;
-    const hold = G.result === 'crash' ? CFG2.END_HOLD_MS : 500;
-    if (now - G.endAt >= hold) endRound();
+    if (now - G.endAt >= CFG2.END_HOLD_MS) endRound();
   }
 
   if (sizeChanged()) resize();
@@ -130,14 +124,13 @@ function boot() {
   window.addEventListener('orientationchange', () => setTimeout(resize, 250));
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
-  $('btn-timed').addEventListener('click', () => startRound('timed'));
-  $('btn-endless').addEventListener('click', () => startRound('endless'));
+  $('btn-free').addEventListener('click', () => startRound());
   $('btn-settings').addEventListener('click', () => { applySettingsToDom(settings); showScreen('s-settings'); });
   $('btn-settings-back').addEventListener('click', () => showScreen('s-menu'));
   $('btn-pause').addEventListener('click', () => setPaused(!paused));
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-quit').addEventListener('click', quitToMenu);
-  $('btn-again').addEventListener('click', () => startRound(G ? G.mode : 'timed'));
+  $('btn-again').addEventListener('click', () => startRound());
   $('btn-menu').addEventListener('click', quitToMenu);
 
   bindSettings(settings, on => {
@@ -146,14 +139,12 @@ function boot() {
   });
   if (typeof MUS !== 'undefined' && !settings.music && !MUS.muted) MUS.toggle();
 
-  installInput(canvas, $('dpad'), {
+  installInput(canvas, $('stick'), {
     onTurn: dir => { if (G) setPlayerTurn(G, dir); },
     onPause: () => { if (G && G.state === 'playing') setPaused(!paused); },
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
-  renderBestList('timed');
-  renderBestList('endless');
   showScreen('s-menu');
   requestAnimationFrame(frame);
 }

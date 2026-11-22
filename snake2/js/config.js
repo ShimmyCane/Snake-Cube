@@ -17,8 +17,9 @@ const CFG2 = {
   MINI_PX_MIN: 110,            // minimap size on a phone
   MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
   TICK_MS: 243,                // one step for every snake (30% slower than 170)
-  ROUND_MS: 180000,            // Timed mode: 3:00
-  GOAL: 2021,                  // MMXXI — the cap and the win
+  MAX_VALUE: 3999,             // MMXXI is not a goal in FreePlay; 3999 (MMMCMXCIX) is the largest numeral
+  JOY_DEAD_PX: 14,             // the corner stick ignores pushes shorter than this
+  JOY_MAX_PX: 42,              // how far the stick knob travels
   START_VALUE: 1,              // every snake starts as I
   SNACKS_ON_FIELD: 20,         // snacks kept on the board with the default number of bots
   SNACKS_PER_EXTRA_BOT: 4,     // more rivals eat more, so the field grows with them
@@ -28,7 +29,7 @@ const CFG2 = {
   SHATTER_RADIUS: 3,           // a crashed snake's pieces land within this many cells
   SHATTER_FLY_MS: 420,         // how long the pieces take to fly out
   BURST_MS: 520,               // the little explosion
-  END_HOLD_MS: 1100,           // after a crash or win, before fading to the end screen
+  END_HOLD_MS: 1100,           // after a crash, before fading to the end screen
   BOT_RESPAWN_MS: 3000,
   BOT_SAFE_DISTANCE: 8,        // a respawning bot needs this much room from you
   TURN_QUEUE: 2,               // buffered player turns

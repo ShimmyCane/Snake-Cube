@@ -18,7 +18,11 @@ const CFG2 = {
   ARTIFACT_SAFE: 18,           // no artifacts this close to the start, so the first moves are safe
   ARTIFACT_MAX_R: 0.8,         // the widest artifact, in tiles
   BOT_START_R: 14,             // bots begin on a ring this far from the start
-  CELL_PX: 35,                 // drawn size of one tile: the same on every device, bigger screens show more map
+  CELL_PX: 35,                 // drawn size of one tile at zoom 1; the zoom setting scales it
+  ZOOM_DEFAULT: 1.5,           // 150%: the board is drawn one and a half times bigger than at 100%
+  ZOOM_MIN: 0.75,
+  ZOOM_MAX: 2.5,
+  ZOOM_STEP: 0.05,
   MINI_PX_MIN: 110,            // minimap size on a phone
   MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
   TICK_MS: 243,                // one simulation step

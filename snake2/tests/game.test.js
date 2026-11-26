@@ -4,6 +4,23 @@ const { load, plain } = require('./load');
 
 const ctx = load();
 const { createGame, stepGame, setPlayerAim, romanLength, bodyLenFor, setValue, numeralTokens, fromRoman, toRoman, CFG2, TAU } = ctx;
+const BAR = '\u0305';
+
+// Put an artifact in the world at (x, y).
+function placeArtifact(G, x, y, r = 0.8) {
+  const cx = Math.floor(x / CFG2.CELL), cy = Math.floor(y / CFG2.CELL);
+  const key = cx + ',' + cy;
+  if (!G.cells.has(key)) G.cells.set(key, []);
+  G.cells.get(key).push({ x, y, r, kind: 'column' });
+}
+
+// A quiet world for the crash tests: no seeded artifacts, the player at the start, heading right.
+function clearWorld(seed) {
+  const G = createGame({ seed, bots: 1 });
+  G.cells.clear();
+  G.snacks = [];
+  return G;
+}
 
 const invariant = s => Math.abs(s.targetLen - bodyLenFor(s.value)) < 1e-9 && s.bodyLen <= s.targetLen + 1e-9;
 
@@ -21,7 +38,7 @@ function growPlayer(G, value) {
   G.player.symPts = ctx.symbolPoints(G.player);
 }
 
-test('createGame: player in the middle, bots on their starts, field stocked, same seed same field', () => {
+test('createGame: player at the start, bots on their starts, field stocked, same seed same field', () => {
   const a = createGame({ seed: 42 });
   const b = createGame({ seed: 42 });
   assert.equal(a.player.value, 1);
@@ -68,29 +85,92 @@ test('III eating I collapses to IV: the body shrinks to a lone head and a collap
   assert.ok(G.pops.some(p => p.text === 'III + I → IV'), 'pop label');
 });
 
-test('hitting a wall ends the game in crash', () => {
-  const G = createGame({ seed: 5, bots: 1 });
-  G.player.x = 1.6; G.player.y = 25; G.player.angle = Math.PI; G.player.target = Math.PI;
-  G.player.trail = [{ x: 1.6, y: 25 }];
+test('an artifact costs one or two symbols from the head, and the game goes on', () => {
+  const G = clearWorld(5);
+  growPlayer(G, 3);                              // III
+  G.player.trail = [{ x: 0, y: 0 }, { x: -1, y: 0 }, { x: -2, y: 0 }];
+  G.player.bodyLen = G.player.targetLen;
+  placeArtifact(G, 1.3, 0);                      // one step ahead
   const events = stepGame(G, 0);
+  assert.equal(G.state, 'playing', 'a crash is not the end');
+  assert.ok([1, 2].includes(G.player.value), `now ${toRoman(G.player.value)}`);
+  assert.ok(events.some(e => e.type === 'crash' && e.reason === 'artifact' && e.isPlayer && !e.dead));
+  assert.ok(G.pops.some(p => p.text.startsWith('−')), 'the loss is shown');
+  assert.ok(G.player.grace > 0, 'a short grace after the crash');
+  assert.ok(invariant(G.player));
+});
+
+test('the head moves back onto the first symbol left after a crash', () => {
+  // III on a trail running left from the head. After the step the head is at x = 1, and the
+  // artifact at 1.3 catches it. Losing one symbol (II) puts the head 0.85 back, at x = 0.15;
+  // losing two (I) puts it 1.7 back, at x = -0.7.
+  const G = clearWorld(5);
+  growPlayer(G, 3);
+  G.player.trail = [{ x: 0, y: 0 }, { x: -1, y: 0 }, { x: -2, y: 0 }];
+  G.player.bodyLen = G.player.targetLen;
+  placeArtifact(G, 1.3, 0);
+  stepGame(G, 0);
+  const expected = { 2: 1 - CFG2.SYMBOL_STEP, 1: 1 - 2 * CFG2.SYMBOL_STEP };
+  assert.ok(G.player.value in expected, `value ${G.player.value}`);
+  assert.ok(Math.abs(G.player.x - expected[G.player.value]) < 1e-9, `head at ${G.player.x}`);
+  assert.ok(Math.abs(G.player.y) < 1e-9);
+});
+
+test('an artifact cannot crash the same snake again while it is in grace', () => {
+  const G = clearWorld(5);
+  growPlayer(G, 5);                              // V
+  placeArtifact(G, 1.3, 0);
+  stepGame(G, 0);
+  const after = G.player.value;
+  G.player.x = 1.3; G.player.y = 0;              // still touching it
+  stepGame(G, 1);
+  assert.equal(G.player.value, after, 'no second penalty during grace');
+});
+
+test('a snake with one symbol that crashes into an artifact has nothing left: game over', () => {
+  const G = clearWorld(8);
+  placeArtifact(G, 1.3, 0);
+  const events = stepGame(G, 0);
+  assert.equal(G.player.alive, false);
   assert.equal(G.state, 'over');
   assert.equal(G.result, 'crash');
   assert.ok(events.some(e => e.type === 'over'));
+  assert.ok(G.bursts.length >= 1);
 });
 
-test('FreePlay has no goal: past MMXXI the snake keeps going, up to the largest numeral', () => {
-  const G = createGame({ seed: 6, bots: 1 });
+test('FreePlay has no goal and no cap: the numeral goes on past MMMCMXCIX', () => {
+  const G = clearWorld(6);
+  growPlayer(G, 3999);
+  snackAhead(G, 1);
+  stepGame(G, 0);
+  assert.equal(G.state, 'playing', 'no win state');
+  assert.equal(G.player.value, 4000, 'carries on into the overlines');
+  assert.equal(toRoman(4000), 'I' + BAR + 'V' + BAR);
+  assert.ok(invariant(G.player));
+
   growPlayer(G, 2020);
   snackAhead(G, 50);
   stepGame(G, 0);
-  assert.equal(G.state, 'playing', 'no win state');
   assert.equal(G.player.value, 2070);
   assert.ok(invariant(G.player));
+});
 
-  growPlayer(G, 3995);
-  snackAhead(G, 50);
+test('the world has no edge: a snake far out is not stopped, and bots stay near the player', () => {
+  const G = clearWorld(17);
+  G.player.x = -500; G.player.y = 900; G.player.angle = 0; G.player.target = 0;
+  G.player.trail = [{ x: -500, y: 900 }];
   stepGame(G, 0);
-  assert.equal(G.player.value, CFG2.MAX_VALUE, 'capped at the largest numeral');
+  assert.equal(G.player.alive, true);
+  assert.equal(G.state, 'playing');
+});
+
+test('a bot that wanders out of sight is started again near the player', () => {
+  const G = clearWorld(18);
+  const bot = G.snakes[1];
+  bot.x = 400; bot.y = 400; bot.trail = [{ x: 400, y: 400 }];
+  stepGame(G, 0);
+  assert.ok(Math.hypot(bot.x - G.player.x, bot.y - G.player.y) <= CFG2.BOT_SPAWN_R + 2, 'back near the player');
+  assert.equal(bot.value, CFG2.START_VALUE);
 });
 
 test('a crashed bot breaks apart: its body symbols become coins of the same value, nearby', () => {
@@ -102,7 +182,7 @@ test('a crashed bot breaks apart: its body symbols become coins of the same valu
   bot.trail = [{ x: 1.6, y: 30 }, { x: 2.6, y: 30 }, { x: 3.6, y: 30 }];
   G.snacks = [];
   G.snackTarget = 0;                    // no restocking, so only the pieces are on the field
-  // Crash it directly: a bot now turns at once, so it would simply turn away from the wall.
+  // Crash it directly: the shatter is what happens when a snake runs out of symbols.
   bot.alive = false;
   ctx.shatter(G, bot, 0);
   const pieces = G.snacks.filter(s => s.piece);
@@ -113,21 +193,11 @@ test('a crashed bot breaks apart: its body symbols become coins of the same valu
   }
 });
 
-test('the player breaks apart too when they crash, then the game is over', () => {
-  const G = createGame({ seed: 8, bots: 1 });
-  G.player.x = 1.6; G.player.y = 25; G.player.angle = Math.PI; G.player.target = Math.PI;
-  G.player.trail = [{ x: 1.6, y: 25 }];
-  stepGame(G, 0);
-  assert.equal(G.player.alive, false);
-  assert.equal(G.state, 'over');
-  assert.ok(G.bursts.length >= 1);
-});
-
 test('the Rival snakes setting: 1 to 10 bots, clamped, each on its own start', () => {
   assert.equal(createGame({ seed: 9, bots: 0 }).snakes.length, 1 + CFG2.BOTS_MIN);
   assert.equal(createGame({ seed: 9, bots: 99 }).snakes.length, 1 + CFG2.BOTS_MAX);
   const G = createGame({ seed: 9, bots: 10 });
-  const starts = G.snakes.slice(1).map(b => b.x + ',' + b.y);
+  const starts = G.snakes.slice(1).map(b => b.x.toFixed(3) + ',' + b.y.toFixed(3));
   assert.equal(new Set(starts).size, starts.length);
   assert.ok(G.snackTarget > createGame({ seed: 9, bots: 3 }).snackTarget, 'more rivals, more snacks');
 });

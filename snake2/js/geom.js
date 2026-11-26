@@ -49,6 +49,18 @@ function pointAtArc(trail, arc) {
   return { x: last.x, y: last.y };
 }
 
+// A new trail that starts at the point `arc` along this one, and follows it on from there.
+// Used when the head is knocked back along the body.
+function trailFrom(trail, arc) {
+  const out = [pointAtArc(trail, arc)];
+  let travelled = 0;
+  for (let i = 0; i + 1 < trail.length; i++) {
+    travelled += Math.hypot(trail[i + 1].x - trail[i].x, trail[i + 1].y - trail[i].y);
+    if (travelled > arc + 1e-9) out.push({ x: trail[i + 1].x, y: trail[i + 1].y });
+  }
+  return out;
+}
+
 // Drop the trail points beyond `maxArc` from the head. Changes the array in place.
 function trimTrail(trail, maxArc) {
   let travelled = 0;

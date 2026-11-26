@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
 //  SNAKE II — config. Plain script: every snake2/js file shares one global scope.
-//  Movement is smooth, not on a grid. One tile is one unit of board space.
+//  Movement is smooth, not on a grid. One tile is one unit of world space. The world has no edge.
 // ════════════════════════════════════════════════════════════════════
 
 // Read by ../js/music.js (shared with the main game)
@@ -12,8 +12,12 @@ const CFG_AUDIO = {
 };
 
 const CFG2 = {
-  COLS: 50, ROWS: 50,          // board size in tiles, including the stone border
-  WALL_T: 1,                   // stone border thickness, in tiles
+  // The world is endless and has no border. The player starts at (0, 0).
+  CELL: 14,                    // artifacts are placed per square of this many tiles
+  ARTIFACT_CHANCE: 0.35,       // chance that a cell holds an artifact
+  ARTIFACT_SAFE: 18,           // no artifacts this close to the start, so the first moves are safe
+  ARTIFACT_MAX_R: 0.8,         // the widest artifact, in tiles
+  BOT_START_R: 14,             // bots begin on a ring this far from the start
   CELL_PX: 35,                 // drawn size of one tile: the same on every device, bigger screens show more map
   MINI_PX_MIN: 110,            // minimap size on a phone
   MINI_PX_MAX: 260,            // ...and on a big screen (it scales up with the screen)
@@ -25,14 +29,20 @@ const CFG2 = {
   GROW_PER_TICK: 0.5,          // body length gained per step while a numeral grows
   NECK_ARC: 2.0,               // a snake's own first tiles are its neck: they cannot crash it
   EAT_R: 0.8,                  // a head this close to a snack eats it
-  MAX_VALUE: 3999,             // MMXXI is not a goal in FreePlay; 3999 (MMMCMXCIX) is the largest numeral
+  CRASH_LOSS_MAX: 2,           // a crash costs one or two symbols, from the head end
+  CRASH_GRACE_TICKS: 8,        // after a crash, a snake cannot crash again for this many steps
+  SNACK_SPAWN_R: 24,           // new snacks appear this close to the player
+  SNACK_KEEP: 40,              // snacks further than this from the player are taken off the field
+  BOT_SPAWN_R: 20,             // a respawning bot appears within this range of the player
+  BOT_LEASH: 60,               // a bot wandering further than this is quietly started again nearer
+  MINI_SPAN: 80,               // the minimap shows this many tiles across, centred on the player
   START_VALUE: 1,              // every snake starts as I
   SNACKS_ON_FIELD: 20,         // snacks kept on the board with the default number of bots
   SNACKS_PER_EXTRA_BOT: 4,     // more rivals eat more, so the field grows with them
   BOTS: 3,                     // default rival snakes
   BOTS_MIN: 1,
   BOTS_MAX: 10,                // the settings stepper stops here
-  SHATTER_RADIUS: 3,           // a crashed snake's pieces land within this many tiles
+  SHATTER_RADIUS: 3,           // a crashed or penalised snake's pieces land within this many tiles
   SHATTER_FLY_MS: 420,         // how long the pieces take to fly out
   BURST_MS: 520,               // the little explosion
   END_HOLD_MS: 1100,           // after a crash, before fading to the end screen

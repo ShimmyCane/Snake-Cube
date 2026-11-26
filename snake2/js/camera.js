@@ -1,6 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-//  CAMERA — follows the player, never shows past the walls.
-//  The board is bigger than a phone screen (plan section 9).
+//  CAMERA — follows the player. The world has no edge, so the view never stops at one.
 // ════════════════════════════════════════════════════════════════════
 
 // Cells are the same size on every device, so tiles, coins and buttons look the same on an
@@ -21,17 +20,11 @@ function viewCells(width, height, cellPx) {
 }
 
 // Smoothly move the camera so the player's head sits near the middle.
-// cam.x / cam.y are the board point at the top-left of the view, in tiles.
+// cam.x / cam.y are the world point at the top-left of the view, in tiles.
 function updateCamera(cam, G, view) {
   const h = G.player;
-  const tx = h.x - view.w / 2;
-  const ty = h.y - view.h / 2;
-  const clampAxis = (t, size, board) => {
-    if (size >= board) return (board - size) / 2;   // whole board fits: centre it
-    return Math.max(0, Math.min(board - size, t));
-  };
-  const goalX = clampAxis(tx, view.w, CFG2.COLS);
-  const goalY = clampAxis(ty, view.h, CFG2.ROWS);
+  const goalX = h.x - view.w / 2;
+  const goalY = h.y - view.h / 2;
   if (cam.x === undefined) { cam.x = goalX; cam.y = goalY; }
   cam.x += (goalX - cam.x) * 0.25;
   cam.y += (goalY - cam.y) * 0.25;

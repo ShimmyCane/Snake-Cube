@@ -4,8 +4,8 @@
 
 // Cells are the same size on every device, so tiles, coins and buttons look the same on an
 // iPhone, an iPad and a laptop. A bigger screen simply shows more of the map.
-function cellSizeFor(width, height) {
-  return CFG2.CELL_PX;
+function cellSizeFor(width, height, zoom) {
+  return CFG2.CELL_PX * (zoom || 1);
 }
 
 // The minimap grows with the screen: 110 px on a phone, up to 260 px on a big one.

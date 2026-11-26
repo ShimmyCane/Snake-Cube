@@ -4,7 +4,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 const SETTINGS_KEY = 'snake2.settings';
-const SETTINGS_DEFAULT = { showNumbers: false, snackSet: 'classic', music: true, hint: true, bots: CFG2.BOTS };
+const SETTINGS_DEFAULT = { showNumbers: false, snackSet: 'classic', music: true, hint: true, bots: CFG2.BOTS, zoom: CFG2.ZOOM_DEFAULT };
 
 const $ = id => document.getElementById(id);
 
@@ -24,6 +24,12 @@ function saveSettings(s) {
 function clampBots(n) {
   const v = Number.isFinite(n) ? Math.round(n) : CFG2.BOTS;   // 0 is a real value, not 'missing'
   return Math.max(CFG2.BOTS_MIN, Math.min(CFG2.BOTS_MAX, v));
+}
+
+// Zoom is a fraction (1 is 100%). Anything missing or odd falls back to the default.
+function clampZoom(z) {
+  const v = Number.isFinite(z) ? z : CFG2.ZOOM_DEFAULT;
+  return Math.max(CFG2.ZOOM_MIN, Math.min(CFG2.ZOOM_MAX, v));
 }
 
 function numeralText(value, showNumbers) {
@@ -90,6 +96,8 @@ function applySettingsToDom(s) {
   $('set-music').checked = !!s.music;
   $('set-hint').checked = !!s.hint;
   $('bots-val').textContent = toRoman(clampBots(s.bots));
+  $('set-zoom').value = String(clampZoom(s.zoom));
+  $('zoom-val').textContent = Math.round(clampZoom(s.zoom) * 100) + '%';
   document.querySelectorAll('[data-snack]').forEach(b => {
     b.classList.toggle('active', b.dataset.snack === s.snackSet);
   });
@@ -98,6 +106,11 @@ function applySettingsToDom(s) {
 function bindSettings(settings, onMusic) {
   $('set-numbers').addEventListener('change', e => { settings.showNumbers = e.target.checked; saveSettings(settings); });
   $('set-hint').addEventListener('change', e => { settings.hint = e.target.checked; saveSettings(settings); });
+  $('set-zoom').addEventListener('input', e => {
+    settings.zoom = clampZoom(parseFloat(e.target.value));
+    saveSettings(settings);
+    applySettingsToDom(settings);
+  });
   $('set-music').addEventListener('change', e => {
     settings.music = e.target.checked;
     saveSettings(settings);

@@ -109,8 +109,8 @@ function frame(now) {
   }
 
   if (sizeChanged()) resize();
-  const view = viewCells(window.innerWidth, window.innerHeight, cellSizeFor(window.innerWidth, window.innerHeight));
-  const cellPx = cellSizeFor(window.innerWidth, window.innerHeight);
+  const cellPx = cellSizeFor(window.innerWidth, window.innerHeight, clampZoom(settings.zoom));
+  const view = viewCells(window.innerWidth, window.innerHeight, cellPx);
   updateCamera(cam, G, view);
   ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
   const t = G.state === 'playing' && !paused ? Math.min(1, acc / CFG2.TICK_MS) : 1;

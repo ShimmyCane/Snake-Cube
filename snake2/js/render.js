@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
-//  RENDER — the cartoon board on a 2-D canvas. Reads G, never changes it.
-//  Positions are in board tiles; cam.x / cam.y is the board point at the top-left.
+//  RENDER — the cartoon world on a 2-D canvas. Reads G, never changes it.
+//  Positions are in world tiles; cam.x / cam.y is the world point at the top-left.
 // ════════════════════════════════════════════════════════════════════
 
 const FLOOR = '#f4e7c5';
@@ -8,29 +8,46 @@ const STONE = '#8c8273';
 const STONE_EDGE = '#5b5246';
 const INK = '#2b2118';
 const COIN = '#f7c948';
+const FLOOR_DOT = '#e6d6ad';
 
-// Floor: plain, no grid. Movement is not on a grid, so the floor does not show one.
+// Whether a symbol is a ligature (IV, CM…) once its overlines are taken off. Those get a smaller font.
+const isLigature = text => text.replace(/\u0305/g, '').length === 2;
+
+// Floor: plain, with a dot every two tiles so the scrolling shows. The world has no edge.
 function drawFloor(ctx, cam, cellPx, view) {
   ctx.fillStyle = FLOOR;
   ctx.fillRect(0, 0, view.w * cellPx, view.h * cellPx);
-}
-
-// The stone border: chunky blocks with a darker edge. Only the border is drawn in blocks.
-function drawWalls(ctx, cam, cellPx, view) {
-  const x0 = Math.floor(cam.x), y0 = Math.floor(cam.y);
-  for (let c = x0; c <= x0 + view.w + 1; c++) {
-    for (let r = y0; r <= y0 + view.h + 1; r++) {
-      if (!isWallCell(c, r)) continue;
-      const x = (c - cam.x) * cellPx, y = (r - cam.y) * cellPx;
-      ctx.fillStyle = STONE;
-      ctx.strokeStyle = STONE_EDGE;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(x + 1, y + 1, cellPx - 2, cellPx - 2, cellPx * 0.18);
-      ctx.fill();
-      ctx.stroke();
+  ctx.fillStyle = FLOOR_DOT;
+  for (let c = Math.ceil(cam.x / 2) * 2; c <= cam.x + view.w; c += 2) {
+    for (let r = Math.ceil(cam.y / 2) * 2; r <= cam.y + view.h; r += 2) {
+      ctx.fillRect((c - cam.x) * cellPx - 1.5, (r - cam.y) * cellPx - 1.5, 3, 3);
     }
   }
+}
+
+// An artifact: a broken stone column, or a clay amphora. Its shadow sits under it.
+function drawArtifact(ctx, ob, cam, cellPx) {
+  const cx = (ob.x - cam.x) * cellPx, cy = (ob.y - cam.y) * cellPx;
+  const r = ob.r * cellPx;
+  ctx.fillStyle = 'rgba(43, 33, 24, 0.18)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + r * 0.8, r * 0.95, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = INK;
+  if (ob.kind === 'column') {
+    ctx.fillStyle = STONE;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = STONE_EDGE;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, Math.PI * 2); ctx.stroke();
+  } else {
+    ctx.fillStyle = '#c0703f';
+    ctx.beginPath(); ctx.ellipse(cx, cy, r * 0.8, r, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - r * 0.3, cy - r * 0.95); ctx.lineTo(cx + r * 0.3, cy - r * 0.95); ctx.lineTo(cx + r * 0.25, cy - r * 1.3); ctx.lineTo(cx - r * 0.25, cy - r * 1.3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+}
+
+// The artifacts on screen. They are the obstacles a head can crash into.
+function drawArtifacts(ctx, G, cam, cellPx, view) {
+  for (const ob of artifactsBetween(G, cam.x, cam.y, cam.x + view.w, cam.y + view.h)) drawArtifact(ctx, ob, cam, cellPx);
 }
 
 // White text on the dark symbol colours, ink on the light ones.
@@ -70,7 +87,7 @@ function drawSnacks(ctx, G, cam, cellPx, now) {
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, rad - 3, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = textColourFor(text);
-    ctx.font = `bold ${Math.round(cellPx * (text.length === 2 ? 0.34 : 0.45))}px Georgia, serif`;
+    ctx.font = `bold ${Math.round(cellPx * (isLigature(text) ? 0.34 : 0.45))}px Georgia, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, cx, cy + 1);
@@ -137,7 +154,7 @@ function drawSymbol(ctx, s, text, cx, cy, cellPx, isHead) {
   ctx.fillStyle = textColourFor(text);
   // Two-letter ligatures get a smaller font so they fit one symbol. On the head, the
   // letter sits low and the eyes high, so the head still reads as part of the number.
-  const font = text.length === 2 ? 0.4 : 0.55;
+  const font = isLigature(text) ? 0.4 : 0.55;
   ctx.font = `bold ${Math.round(cellPx * (isHead ? font * 0.85 : font))}px Georgia, serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -185,28 +202,30 @@ function drawPops(ctx, G, cam, cellPx, now) {
 // Draws one frame. `t` is how far between two steps we are, 0..1.
 function renderBoard(ctx, G, cam, cellPx, view, t, now) {
   drawFloor(ctx, cam, cellPx, view);
-  drawWalls(ctx, cam, cellPx, view);
+  drawArtifacts(ctx, G, cam, cellPx, view);
   drawSnacks(ctx, G, cam, cellPx, now);
   for (const s of G.snakes) if (s.alive) drawSnake(ctx, G, s, cam, cellPx, t);
   drawBursts(ctx, G, cam, cellPx, now);
   drawPops(ctx, G, cam, cellPx, now);
 }
 
-// Small overview of the whole board.
+// Small overview: a window of the world, centred on the player.
 function renderMinimap(ctx, G, size) {
-  const k = size / CFG2.COLS;
+  const span = CFG2.MINI_SPAN;
+  const k = size / span;
+  const x0 = G.player.x - span / 2, y0 = G.player.y - span / 2;
+  const inside = (x, y) => x >= x0 - 1 && x <= x0 + span + 1 && y >= y0 - 1 && y <= y0 + span + 1;
   ctx.fillStyle = FLOOR;
   ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = STONE;
-  ctx.fillRect(0, 0, size, k);
-  ctx.fillRect(0, size - k, size, k);
-  ctx.fillRect(0, 0, k, size);
-  ctx.fillRect(size - k, 0, k, size);
+  for (const ob of artifactsBetween(G, x0, y0, x0 + span, y0 + span)) {
+    ctx.fillRect((ob.x - x0) * k - 2, (ob.y - y0) * k - 2, 4, 4);
+  }
   ctx.fillStyle = COIN;
-  for (const sn of G.snacks) ctx.fillRect(sn.x * k - 1, sn.y * k - 1, 2, 2);
+  for (const sn of G.snacks) if (inside(sn.x, sn.y)) ctx.fillRect((sn.x - x0) * k - 1, (sn.y - y0) * k - 1, 2, 2);
   for (const s of G.snakes) {
-    if (!s.alive) continue;
+    if (!s.alive || !inside(s.x, s.y)) continue;
     ctx.fillStyle = s.isPlayer ? PLAYER_COLOUR : s.colour;
-    ctx.fillRect(s.x * k - 2, s.y * k - 2, 4, 4);
+    ctx.fillRect((s.x - x0) * k - 2, (s.y - y0) * k - 2, 4, 4);
   }
 }

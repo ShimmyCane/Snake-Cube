@@ -23,6 +23,7 @@ function newSnake2(opts) {
     symPts: null,                 // where each symbol is, after the last step
     prevSymPts: null,             // where they were one step earlier, for smooth drawing
     alive: true,
+    grace: 0,                     // steps left in which this snake cannot crash (after a crash)
     respawnAt: 0,                 // bots only
   };
   s.symPts = symbolPoints(s);
